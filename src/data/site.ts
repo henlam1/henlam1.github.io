@@ -5,28 +5,28 @@
 // ─────────────────────────────────────────────────────────────
 
 export const profile = {
-  name: 'Your Name', // TODO
+  name: 'Henry Lam', // TODO
   // Shown under your name in the hero. Keep it to one punchy line.
-  tagline: 'Software engineer who ships things people actually use.', // TODO
+  tagline: 'I build full-stack web apps, and I draw sometimes.',
   // Short paragraph for the About section. 2–4 sentences.
   about:
-    'I’m a CS student at Cornell University who likes building full-stack products end to end, from the database schema to the last hover state. Lately I’ve been focused on TODO. I care about clean interfaces, fast software, and code my teammates enjoy reading.', // TODO
-  location: 'Ithaca, NY', // TODO
+    'I’m a Master of Engineering student in Computer Science at Cornell Tech, after a B.S. in Computer Science from Stony Brook. I build full-stack web apps end to end, from auth and APIs to tests and deployment. Away from the keyboard, I make art and bake.',
+  location: 'New York, NY',
   // One plain sentence under the tagline. Set to '' to hide it.
-  status: 'Looking for software engineering internships for summer 2027.', // TODO
+  status: 'Looking for full-time software engineering roles starting summer 2027.',
   // Your hand-lettered name, exported as a transparent PNG or SVG into public/art/.
   // Example: '/art/name.svg'. Until you add it, your name shows as text.
   lettering: '',
   // A photo of you for the About section, in public/art/.
   // Example: '/art/me.jpg'. Until you add it, a dashed box shows where it goes.
   photo: '',
-  email: 'you@example.com', // TODO
+  email: 'henry.lam.7369@gmail.com',
   // Put your resume PDF in the `public/` folder with this exact name,
   // or change the path. Set to '' to hide the button.
-  resume: '/resume.pdf',
+  resume: '/portfolio_resume.pdf',
   links: {
     github: 'https://github.com/henlam1',
-    linkedin: 'https://www.linkedin.com/in/YOUR-HANDLE', // TODO
+    linkedin: 'https://www.linkedin.com/in/henry-lam-454173269/', // TODO
   },
 };
 
@@ -48,8 +48,8 @@ export const projects: Project[] = [
   {
     title: 'GoPack',
     description:
-      'A trip packing-list app that suggests what to bring for each trip. React Query caching cut redundant API calls by 40%, and 100+ unit and end-to-end tests run in CI.',
-    tech: ['TypeScript', 'React', 'Node.js', 'Express', 'MongoDB', 'React Query', 'Jest', 'Playwright', 'GitHub Actions'],
+      'A trip packing-list app with AI packing suggestions that cut manual edits by about 35%. React Query caching cut redundant API calls by about 40%, and 100+ unit and end-to-end tests run in CI.',
+    tech: ['TypeScript', 'React', 'Node.js', 'Express', 'MongoDB', 'OpenAI API', 'Jest', 'Playwright', 'AWS'],
     repo: 'https://github.com/henlam1/GoPack',
     live: 'https://gopack-client.onrender.com',
     year: '2024–25',
@@ -63,10 +63,10 @@ export const projects: Project[] = [
     year: '2026',
   },
   {
-    title: 'Treetracker web map',
+    title: 'Greenstand open source',
     description:
-      'Open-source contributions to Greenstand’s public map of planted trees. Three merged fixes, including keeping URL state in sync as people pan the map and switch between tokens.',
-    tech: ['JavaScript', 'React', 'Next.js', 'Material UI', 'Leaflet'],
+      'Fixed a site-wide bug on Greenstand’s public map of planted trees: opening a tree from a direct link stopped every other marker from showing data. Merged to production after code review with the maintainers.',
+    tech: ['JavaScript', 'React', 'React-Leaflet', 'Next.js'],
     repo: 'https://github.com/Greenstand/treetracker-web-map-client/pulls?q=is%3Apr+author%3Ahenlam1+is%3Amerged',
     repoLabel: 'Merged PRs',
     live: 'https://map.treetracker.org',
@@ -122,33 +122,29 @@ export type Experience = {
 // Internships, research, TA positions, club leadership. Most recent first.
 export const experience: Experience[] = [
   {
-    role: 'Software Engineering Intern',
-    org: 'Company Name',
-    dates: 'Jun – Aug 2026',
+    role: 'Software Developer',
+    org: 'UnieLogics, early-stage startup',
+    dates: 'Nov 2024 – Apr 2025',
     points: [
-      'Shipped a feature that did X, measured by Y. TODO',
-      'Owned a service end to end, from design doc to on-call. TODO',
+      'Replaced manual account creation with Google OAuth 2.0 single sign-on, removing signup steps and login friction.',
+      'Built automated emails for password recovery and account verification, core account-management features.',
+      'Refactored a legacy codebase to reduce technical debt and make future features simpler to build.',
     ],
-  },
-  {
-    role: 'Teaching Assistant, CS 2110',
-    org: 'Cornell University',
-    dates: 'Jan 2026 – Present',
-    points: ['Led weekly sections for 30 students and held office hours. TODO'],
   },
 ];
 
-export const education = {
-  school: 'Cornell University', // TODO
-  degree: 'B.S. Computer Science', // TODO
-  dates: 'Expected May 2028', // TODO
-  coursework: ['Data Structures', 'Algorithms', 'Systems Programming', 'Databases'], // TODO
-};
+// Most recent first.
+export const education: { degree: string; school: string; dates: string; note?: string }[] = [
+  { degree: 'M.Eng. in Computer Science', school: 'Cornell Tech, Cornell University', dates: 'Expected May 2027' },
+  { degree: 'B.S. in Computer Science', school: 'Stony Brook University', dates: '2020–2024', note: '3.7 GPA, magna cum laude' },
+];
 
 // Grouped skills. Only list things you'd be comfortable being asked about in an interview.
 export const skills: Record<string, string[]> = {
-  Languages: ['TypeScript', 'Python', 'Java', 'C', 'SQL'],
-  Frontend: ['React', 'Astro', 'HTML/CSS', 'Tailwind'],
-  Backend: ['Node.js', 'FastAPI', 'PostgreSQL', 'Redis'],
-  Tools: ['Git', 'Docker', 'AWS', 'Linux'],
+  Languages: ['Python', 'TypeScript', 'JavaScript', 'Java'],
+  Frontend: ['React', 'React Query', 'HTML/CSS'],
+  Backend: ['Node.js', 'Express', 'REST APIs', 'MongoDB'],
+  'Auth and security': ['OAuth 2.0', 'JWT', 'httpOnly cookies'],
+  'Cloud and DevOps': ['AWS', 'Heroku', 'CI/CD', 'GitHub Actions'],
+  Testing: ['Jest', 'Playwright', 'Selenium', 'Postman'],
 };
