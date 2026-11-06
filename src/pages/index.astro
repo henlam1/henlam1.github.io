@@ -1,0 +1,435 @@
+---
+import Base from '../layouts/Base.astro';
+import ProjectRow from '../components/ProjectRow.astro';
+import ArtViewer from '../components/ArtViewer.astro';
+import { profile, projects, experience, education, skills, art } from '../data/site';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const asset = (path: string) => (path ? `${base}${path}` : '');
+const resumeHref = asset(profile.resume);
+---
+
+<Base>
+  <a class="skip" href="#projects">Skip to projects</a>
+
+  <header class="nav">
+    <div class="wrap nav__inner">
+      <a href="#top" class="nav__name">{profile.name}</a>
+      <nav aria-label="Sections">
+        <a href="#about">About</a>
+        <a href="#projects">Projects</a>
+        <a href="#experience">Experience</a>
+        <a href="#contact">Contact</a>
+        {resumeHref && <a href={resumeHref} target="_blank">Resume<span class="sr-only"> (opens in a new tab)</span></a>}
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero__text">
+        <h1 class="hero__name">
+          {
+            profile.lettering ? (
+              <img src={asset(profile.lettering)} alt={profile.name} />
+            ) : (
+              profile.name
+            )
+          }
+        </h1>
+        <p class="hero__tagline">{profile.tagline}</p>
+        {profile.status && <p class="hero__status">{profile.status}</p>}
+        <div class="hero__actions">
+          <a class="btn" href="#projects">See my projects</a>
+          <a class="btn btn--ghost" href={profile.links.github} target="_blank" rel="noopener">GitHub<span class="sr-only"> (opens in a new tab)</span></a>
+          <a class="btn btn--ghost" href={profile.links.linkedin} target="_blank" rel="noopener">LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>
+        </div>
+      </div>
+      <ArtViewer />
+    </section>
+
+    <!-- Who you are, then what you've built, then where you've worked. -->
+    <section id="about" class="section">
+      <div class="wrap">
+        <h2>About</h2>
+        <div class="about">
+          {profile.photo && <img class="about__photo" src={asset(profile.photo)} alt={`Photo of ${profile.name}`} />}
+          <p class="about__text">{profile.about}</p>
+          <dl class="about__facts">
+            <div>
+              <dt>Education</dt>
+              <dd>{education.degree}, {education.school}, {education.dates}</dd>
+            </div>
+            <div>
+              <dt>Skills</dt>
+              <dd>{Object.values(skills).flat().join(', ')}</dd>
+            </div>
+            <div>
+              <dt>Based in</dt>
+              <dd>{profile.location}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section id="projects" class="section">
+      <div class="wrap">
+        <div class="projects__head">
+          <h2 id="projects-title">Projects</h2>
+          <div class="tabs" role="tablist" aria-labelledby="projects-title">
+            <button type="button" role="tab" id="tab-software" aria-controls="panel-software" aria-selected="true">Software</button>
+            <button type="button" role="tab" id="tab-personal" aria-controls="panel-personal" aria-selected="false" tabindex="-1">Personal</button>
+          </div>
+        </div>
+        <div class="panels">
+          <div role="tabpanel" id="panel-software" aria-labelledby="tab-software">
+            <ul class="list">
+              {projects.map((p) => <ProjectRow project={p} />)}
+            </ul>
+          </div>
+          <div role="tabpanel" id="panel-personal" aria-labelledby="tab-personal" hidden>
+            <ul class="gallery">
+              {
+                art.map((piece) => (
+                  <li>
+                    <img src={asset(piece.src)} alt={piece.title} loading="lazy" />
+                    <p class="gallery__title">{piece.title}</p>
+                    {piece.caption && <p class="gallery__meta">{piece.caption}</p>}
+                    {piece.credit && <p class="gallery__meta">{piece.credit}</p>}
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="experience" class="section">
+      <div class="wrap">
+        <h2>Experience</h2>
+        <ul class="list">
+          {
+            experience.map((x) => (
+              <li class="xp">
+                <div class="xp__head">
+                  <h3>
+                    {x.role}, {x.org}
+                  </h3>
+                  <p class="xp__dates">{x.dates}</p>
+                </div>
+                <ul class="xp__points">
+                  {x.points.map((pt) => (
+                    <li>{pt}</li>
+                  ))}
+                </ul>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact">
+      <div class="wrap">
+        <h2>Contact</h2>
+        <p>
+          Email me at <a href={`mailto:${profile.email}`}>{profile.email}</a>, or find me on{' '}
+          <a href={profile.links.github} target="_blank" rel="noopener">GitHub<span class="sr-only"> (opens in a new tab)</span></a> and{' '}
+          <a href={profile.links.linkedin} target="_blank" rel="noopener">LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer wrap">
+    <p>{profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.</p>
+    <a href="#top">Back to top</a>
+  </footer>
+</Base>
+
+<script>
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+  function select(tab: HTMLButtonElement) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')!)!.hidden = !on;
+    });
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      select(next);
+      next.focus();
+    });
+  });
+  document.querySelectorAll<HTMLElement>('[data-open-tab]').forEach((link) =>
+    link.addEventListener('click', () => {
+      const tab = document.getElementById(`tab-${link.dataset.openTab}`);
+      if (tab) select(tab as HTMLButtonElement);
+    }),
+  );
+</script>
+
+<style>
+  .skip {
+    position: absolute;
+    left: -9999px;
+  }
+  .skip:focus {
+    left: var(--gutter);
+    top: 12px;
+    z-index: 20;
+    padding: 0.5em 1em;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .nav {
+    position: relative;
+    z-index: 10;
+  }
+  .nav__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 72px;
+  }
+  .nav__name {
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav nav {
+    display: flex;
+    gap: clamp(0.25rem, 2vw, 1.25rem);
+    font-size: var(--step-0);
+  }
+  /* Padding keeps each link a comfortable 44px tap target. */
+  .nav nav a {
+    padding: 0.7rem 0.4rem;
+    text-decoration: none;
+  }
+  .nav nav a:hover {
+    text-decoration: underline;
+  }
+  @media (max-width: 560px) {
+    .nav__name {
+      display: none;
+    }
+    .nav__inner {
+      justify-content: center;
+    }
+  }
+
+  /* Intro on the left, the art viewer on the right. */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(32px, 6vw, 80px);
+    align-items: center;
+    padding-top: clamp(24px, 5vw, 64px);
+  }
+  @media (max-width: 820px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .hero__name {
+    font-size: clamp(2.75rem, 6vw, 4.75rem);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+  }
+  .hero__name img {
+    width: min(100%, 480px);
+  }
+  .hero__tagline {
+    margin: clamp(16px, 2.5vw, 24px) 0 0;
+    font-size: var(--step-2);
+    line-height: 1.35;
+  }
+  .hero__status {
+    margin: 0.5rem 0 0;
+    color: var(--paper-muted);
+  }
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .projects__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 2rem;
+    margin-bottom: 1rem;
+  }
+  .projects__head h2 {
+    font-size: var(--step-3);
+  }
+  .tabs {
+    display: inline-flex;
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .tabs button {
+    min-height: 44px;
+    padding: 0 1rem;
+    border: 0;
+    background: none;
+    color: var(--paper-muted);
+    font: inherit;
+    font-size: var(--step-0);
+    cursor: pointer;
+  }
+  .tabs button + button {
+    border-left: 1px solid #3a3a3a;
+  }
+  .tabs button:hover {
+    color: var(--paper);
+  }
+  .tabs button[aria-selected='true'] {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  /* Both panels share one grid cell, so the section is always as tall as the
+     longer one and nothing below jumps when you switch tabs. */
+  .panels {
+    display: grid;
+  }
+  .panels > * {
+    grid-area: 1 / 1;
+  }
+  .panels > [hidden] {
+    display: block;
+    visibility: hidden;
+  }
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 1.5rem;
+    margin: 0;
+    padding: 1.5rem 0 0;
+    list-style: none;
+    border-top: 1px solid #3a3a3a;
+  }
+  .gallery img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--radius);
+  }
+  .gallery__title {
+    margin: 0.5rem 0 0;
+    font-weight: 700;
+  }
+  .gallery__meta {
+    margin: 0.15rem 0 0;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+  }
+
+  .about {
+    display: grid;
+    gap: 1.25rem;
+  }
+  .about__photo {
+    width: 120px;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--radius);
+    filter: grayscale(1);
+  }
+  .about__text {
+    margin: 0;
+  }
+  .about__facts {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: var(--step-0);
+  }
+  .about__facts > div {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 1rem;
+  }
+  .about__facts dt {
+    font-weight: 700;
+  }
+  .about__facts dd {
+    margin: 0;
+    color: var(--paper-muted);
+  }
+
+  /* Shared by Work and Experience: rows separated by hairlines. */
+  .list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid #3a3a3a;
+  }
+
+  .xp {
+    max-width: none;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid #3a3a3a;
+  }
+  .xp__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.25rem 2rem;
+  }
+  .xp h3 {
+    font-size: var(--step-2);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .xp__dates {
+    margin: 0;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .xp__points {
+    margin: 0.4rem 0 0;
+    padding-left: 1.1em;
+  }
+
+  .contact p {
+    margin: 0;
+  }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem 2rem;
+    margin-top: clamp(56px, 8vw, 96px);
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+    border-top: 1px solid #3a3a3a;
+    font-size: var(--step-0);
+  }
+  .footer p {
+    margin: 0;
+    color: var(--paper-muted);
+  }
+  .footer a {
+    display: inline-block;
+    padding: 0.7rem 0;
+  }
+</style>

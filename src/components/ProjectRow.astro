@@ -1,0 +1,91 @@
+---
+// One project in the recruiter list: name and year, a short description,
+// the tech used, and links. Built to be skimmed in a few seconds.
+import type { Project } from '../data/site';
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+---
+
+<li class="row">
+  <div class="row__text">
+    <h3>
+      {project.title} <span class="row__year">{project.year}</span>
+    </h3>
+    <p class="row__desc">{project.description}</p>
+    <p class="row__tech"><span class="sr-only">Built with </span>{project.tech.join(', ')}</p>
+  </div>
+
+  <div class="row__links">
+    {project.live && <a class="btn btn--ghost btn--small" href={project.live} target="_blank" rel="noopener">{project.liveLabel ?? 'Live demo'}<span class="sr-only"> of {project.title} (opens in a new tab)</span></a>}
+    {project.repo && <a class="btn btn--ghost btn--small" href={project.repo} target="_blank" rel="noopener">{project.repoLabel ?? 'GitHub'}<span class="sr-only"> for {project.title} (opens in a new tab)</span></a>}
+    {!project.repo && project.note && <p class="row__note">{project.note}</p>}
+  </div>
+</li>
+
+<style>
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem 2.5rem;
+    align-items: start;
+    max-width: none;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid #3a3a3a;
+  }
+
+  /* The row spans the page; only the text keeps a comfortable reading width. */
+  .row__text {
+    max-width: var(--measure);
+  }
+
+  h3 {
+    font-size: var(--step-2);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .row__year {
+    margin-left: 0.5rem;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .row__desc {
+    margin: 0.35rem 0 0;
+  }
+
+  .row__tech {
+    margin: 0.4rem 0 0;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+  }
+
+  .row__links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .row__note {
+    margin: 0;
+    padding: 0.6em 0;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+  }
+
+  @media (max-width: 720px) {
+    .row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .row__links {
+      justify-content: flex-start;
+    }
+  }
+</style>

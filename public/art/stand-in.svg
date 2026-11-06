@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+  <!-- Stand-in only. Replace it with a scan or photo of your own ink drawing. -->
+  <rect width="1000" height="560" fill="#fff"/>
+  <g transform="rotate(-14 500 280)">
+    <path fill="#000" d="M60 285 C120 245 260 215 420 210 L540 95 L585 222 C680 230 780 245 850 255 L965 140 L925 275 L975 380 L855 298 C760 315 650 330 560 335 C520 338 470 340 440 339 L470 470 L330 332 C230 330 120 315 60 285 Z"/>
+    <g stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round">
+      <path d="M268 255 q12 28 0 56"/>
+      <path d="M292 252 q12 30 0 60"/>
+      <path d="M316 251 q12 30 0 62"/>
+    </g>
+    <circle cx="150" cy="262" r="9" fill="#fff"/>
+  </g>
+</svg>

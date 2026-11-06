@@ -1,0 +1,319 @@
+---
+// A framed viewer for your featured art. Each piece can be shown three ways:
+// the original, re-drawn as text characters, or re-drawn as pixels.
+// The pieces themselves stay still; the motion is the transformation between modes.
+//
+// The ASCII mode is a simple brightness-to-character renderer. It's the baseline
+// to replace with your own renderer once you've worked through Alex Harri's article.
+import { art } from '../data/site';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const pieces = art
+  .filter((p) => p.featured)
+  .map((p) => ({ title: p.title, caption: p.caption ?? '', src: `${base}${p.src}` }));
+const first = pieces[0];
+---
+
+{
+  first && (
+    <figure class="viewer" data-viewer data-pieces={JSON.stringify(pieces)}>
+      <div class="viewer__frame">
+        <canvas role="img" aria-label={`${first.title}, shown as text characters`} />
+      </div>
+
+      <div class="viewer__controls">
+        <div class="viewer__modes" role="group" aria-label="Show this piece as">
+          <button type="button" data-mode="original" aria-pressed="false">Original</button>
+          <button type="button" data-mode="ascii" aria-pressed="true">ASCII</button>
+          <button type="button" data-mode="pixel" aria-pressed="false">Pixel</button>
+        </div>
+        {pieces.length > 1 && (
+          <div class="viewer__nav">
+            <button type="button" data-step="-1" aria-label="Previous piece">‹</button>
+            <button type="button" data-step="1" aria-label="Next piece">›</button>
+          </div>
+        )}
+      </div>
+
+      <figcaption class="viewer__caption">
+        <span data-title>{first.title}</span>
+        <span class="viewer__muted" data-caption>{first.caption}</span>
+        <a href="#projects" data-open-tab="personal">See all my art</a>
+      </figcaption>
+    </figure>
+  )
+}
+
+<script>
+  type Mode = 'original' | 'ascii' | 'pixel';
+  type Piece = { title: string; caption: string; src: string };
+
+  const RAMP = ' .:-=+*#%@'; // lightest to densest; a space is never drawn
+  const ASCII_COLS = 64;
+  const PIXEL_COLS = 48;
+  const REVEAL_MS = 700; // latest a character starts settling
+  const SETTLE_MS = 350; // how long one character takes to settle
+  const PIXEL_MS = 450; // blocks shrink from coarse to final over this long
+  const FADE_MS = 300;
+  const MODE_LABEL = { original: 'shown as the original', ascii: 'shown as text characters', pixel: 'shown as pixels' };
+
+  function hash(i: number, seed = 0) {
+    let h = Math.imul(i ^ seed, 2654435761);
+    h ^= h >>> 15;
+    h = Math.imul(h, 2246822519);
+    h ^= h >>> 13;
+    return (h >>> 0) / 4294967296;
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-viewer]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const canvas = root.querySelector('canvas')!;
+    const ctx = canvas.getContext('2d')!;
+    const sample = document.createElement('canvas');
+    const sctx = sample.getContext('2d', { willReadFrequently: true })!;
+    const pieces: Piece[] = JSON.parse(root.dataset.pieces!);
+    const titleEl = root.querySelector('[data-title]')!;
+    const captionEl = root.querySelector('[data-caption]')!;
+    const modeButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const images = new Map<string, HTMLImageElement>();
+
+    let mode: Mode = 'ascii';
+    let index = 0;
+    let img: HTMLImageElement | null = null;
+    let size = 0;
+    let dpr = 1;
+    let changedAt = -Infinity;
+    let frame = 0;
+
+    modeButtons.forEach((b) =>
+      b.addEventListener('click', () => {
+        mode = b.dataset.mode as Mode;
+        modeButtons.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+        restart();
+      }),
+    );
+    root.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) =>
+      b.addEventListener('click', () => show((index + Number(b.dataset.step) + pieces.length) % pieces.length)),
+    );
+    new ResizeObserver(resize).observe(canvas);
+    show(0);
+
+    function show(i: number) {
+      index = i;
+      const piece = pieces[i];
+      titleEl.textContent = piece.title;
+      captionEl.textContent = piece.caption;
+      let im = images.get(piece.src);
+      if (!im) {
+        im = new Image();
+        im.src = piece.src;
+        images.set(piece.src, im);
+      }
+      if (im.complete && im.naturalWidth) {
+        img = im;
+        restart();
+      } else {
+        im.onload = () => {
+          if (pieces[index].src !== piece.src) return;
+          img = im!;
+          restart();
+        };
+      }
+    }
+
+    function restart() {
+      canvas.setAttribute('aria-label', `${pieces[index].title}, ${MODE_LABEL[mode]}`);
+      changedAt = reduceMotion ? -Infinity : performance.now();
+      request();
+    }
+
+    function resize() {
+      size = canvas.clientWidth;
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = canvas.height = Math.round(size * dpr);
+      request();
+    }
+
+    function request() {
+      if (!frame) frame = requestAnimationFrame(draw);
+    }
+
+    // Where to draw the image inside a w × h box so it fits without cropping.
+    function fit(w: number, h: number, sx = 1, sy = 1) {
+      const s = Math.min(w / (img!.naturalWidth / sx), h / (img!.naturalHeight / sy));
+      const dw = (img!.naturalWidth / sx) * s;
+      const dh = (img!.naturalHeight / sy) * s;
+      return [(w - dw) / 2, (h - dh) / 2, dw, dh] as const;
+    }
+
+    // Draw the image small and read it back: one brightness value per cell,
+    // where dark ink is 1 and white paper is 0.
+    function inkGrid(cols: number, rows: number, cellW: number, cellH: number) {
+      sample.width = cols;
+      sample.height = rows;
+      sctx.fillStyle = '#fff';
+      sctx.fillRect(0, 0, cols, rows);
+      sctx.drawImage(img!, ...fit(cols, rows, cellW, cellH));
+      const px = sctx.getImageData(0, 0, cols, rows).data;
+      const ink = new Float32Array(cols * rows);
+      for (let i = 0; i < ink.length; i++) {
+        const lum = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
+        ink[i] = Math.min(1, Math.max(0, (1 - lum - 0.08) / 0.92));
+      }
+      return ink;
+    }
+
+    function draw(now: number) {
+      frame = 0;
+      if (!img || !size) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, size, size);
+      const t = now - changedAt;
+      let animating = false;
+
+      if (mode === 'original') {
+        const p = Math.min(1, t / FADE_MS);
+        ctx.globalAlpha = p;
+        ctx.drawImage(img, ...fit(size, size));
+        ctx.globalAlpha = 1;
+        animating = p < 1;
+      } else if (mode === 'pixel') {
+        // Blocks start coarse and sharpen to the final size.
+        const p = Math.min(1, t / PIXEL_MS);
+        const finalCols = PIXEL_COLS;
+        const cols = Math.max(6, Math.round(finalCols * (0.2 + 0.8 * p * p)));
+        const block = size / cols;
+        const ink = inkGrid(cols, cols, 1, 1);
+        ctx.fillStyle = '#f2f2f2';
+        for (let r = 0; r < cols; r++) {
+          for (let c = 0; c < cols; c++) {
+            const level = Math.round(ink[r * cols + c] * 3) / 3; // four tones, like a limited palette
+            if (level <= 0) continue;
+            ctx.globalAlpha = level;
+            ctx.fillRect(Math.floor(c * block), Math.floor(r * block), Math.ceil(block), Math.ceil(block));
+          }
+        }
+        ctx.globalAlpha = 1;
+        animating = p < 1;
+      } else {
+        // Characters are about 1.75 times taller than wide, so there are fewer rows than columns.
+        const cw = size / ASCII_COLS;
+        const ch = cw * 1.75;
+        const rows = Math.floor(size / ch);
+        const ink = inkGrid(ASCII_COLS, rows, cw, ch);
+        const top = (size - rows * ch) / 2;
+        const tick = Math.floor(now / 120);
+        ctx.font = `${Math.round(cw * 1.6)}px ui-monospace, Menlo, Consolas, monospace`;
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#f2f2f2';
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < ASCII_COLS; c++) {
+            const i = r * ASCII_COLS + c;
+            let b = ink[i];
+            let glyph = Math.round(b * (RAMP.length - 1));
+            // Scramble, then settle into place.
+            const p = (t - hash(i, 7) * REVEAL_MS) / SETTLE_MS;
+            if (b > 0.05 && p < 1) {
+              glyph = 1 + Math.floor(hash(i, tick) * (RAMP.length - 1));
+              b *= Math.max(0.25, p);
+              animating = true;
+            }
+            if (glyph === 0 || b < 0.02) continue;
+            ctx.globalAlpha = 0.3 + 0.7 * b;
+            ctx.fillText(RAMP[glyph], c * cw, top + r * ch);
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      if (animating) request();
+    }
+  }
+</script>
+
+<style>
+  .viewer {
+    margin: 0;
+    width: 100%;
+    max-width: 480px;
+    justify-self: end;
+  }
+
+  .viewer__frame {
+    aspect-ratio: 1;
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .viewer__frame canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .viewer__controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.75rem;
+  }
+
+  .viewer__modes,
+  .viewer__nav {
+    display: inline-flex;
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .viewer button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border: 0;
+    background: none;
+    color: var(--paper-muted);
+    font: inherit;
+    font-size: var(--step-0);
+    cursor: pointer;
+  }
+
+  .viewer button + button {
+    border-left: 1px solid #3a3a3a;
+  }
+
+  .viewer button:hover {
+    color: var(--paper);
+  }
+
+  .viewer button[aria-pressed='true'] {
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .viewer__nav button {
+    font-size: var(--step-2);
+    padding: 0 0.6rem;
+  }
+
+  .viewer__caption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    margin-top: 0.75rem;
+    font-size: var(--step-0);
+  }
+
+  .viewer__muted {
+    color: var(--paper-muted);
+  }
+
+  .viewer__caption a {
+    margin-left: auto;
+  }
+</style>
