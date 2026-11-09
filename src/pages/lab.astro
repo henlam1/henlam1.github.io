@@ -1,0 +1,135 @@
+---
+// A scratch page for experimenting with ASCII rendering.
+// Open http://localhost:4321/lab while `npm run dev` is running.
+// It isn't linked from the site, but it will be published with it:
+// delete this file before going live, or keep it as a "lab" page on purpose.
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="ASCII lab">
+  <main class="lab">
+    <h1>ASCII lab</h1>
+    <p class="lab__hint">
+      Edit <code>src/lib/ascii.ts</code> and save. This page reloads with your changes.
+    </p>
+
+    <label class="lab__pick">
+      Try your own image:
+      <input type="file" accept="image/*" data-file />
+    </label>
+
+    <div class="lab__panes">
+      <figure>
+        <figcaption>Original</figcaption>
+        <canvas data-source></canvas>
+      </figure>
+      <figure>
+        <figcaption>Your ASCII</figcaption>
+        <canvas data-output></canvas>
+      </figure>
+    </div>
+  </main>
+</Base>
+
+<script>
+  import { toAscii } from '../lib/index.ts';
+
+  const COLS = 80; // characters per row; try changing this
+  const MAX_WIDTH = 800; // big photos are scaled down so there are fewer pixels to read
+
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-source]')!;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const output = document.querySelector<HTMLCanvasElement>('[data-output]')!;
+  const outputCtx = output.getContext('2d')!;
+  const fileInput = document.querySelector<HTMLInputElement>('[data-file]')!;
+
+  function drawAscii(lines: string[], width: number, height: number){
+    // Same size as the original. Setting these also clears the canvas and
+    // resets its settings, so they have to come before the font.
+    output.width = width;
+    output.height = height;
+
+    const cellWidth = width / COLS;
+    const cellHeight = height / lines.length;
+
+    outputCtx.font = `${cellWidth * 1.6}px ui-monospace, Menlo, Consolas, monospace`;
+    outputCtx.textBaseline = 'top';
+    outputCtx.fillStyle = '#f2f2f2';
+
+    lines.forEach((line, row) => {
+      for (let col = 0; col < line.length; col++){
+        outputCtx.fillText(line[col], col * cellWidth, row * cellHeight)
+      }
+    })
+  }
+  function render(img: HTMLImageElement) {
+    // 1. Draw the image onto a canvas, on white so transparent images still work.
+    const scale = Math.min(1, MAX_WIDTH / img.naturalWidth);
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // 2. Read every pixel back.
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // 3. Characters are about twice as tall as they are wide, so the picture
+    //    needs about half as many rows as columns to keep its shape.
+    const rows = Math.round(COLS * (canvas.height / canvas.width) * 0.5);
+
+    // 4. Your converter does the rest.
+    drawAscii(toAscii(image, COLS, rows), canvas.width, canvas.height);
+  }
+
+  function load(src: string) {
+    const img = new Image();
+    img.onload = () => render(img);
+    img.src = src;
+  }
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) load(URL.createObjectURL(file));
+  });
+
+  load(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/art/stand-in.svg`);
+</script>
+
+<style>
+  .lab {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem var(--gutter) 4rem;
+  }
+  .lab h1 {
+    font-size: var(--step-3);
+  }
+  .lab__hint {
+    color: var(--paper-muted);
+  }
+  .lab__pick {
+    display: block;
+    margin: 1rem 0 2rem;
+    font-size: var(--step-0);
+  }
+  .lab__panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+  figure {
+    margin: 0;
+  }
+  figcaption {
+    margin-bottom: 0.5rem;
+    color: var(--paper-muted);
+    font-size: var(--step-0);
+  }
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+</style>

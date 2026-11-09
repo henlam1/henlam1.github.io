@@ -1,13 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
-  <!-- Stand-in only. Replace it with a scan or photo of your own ink drawing. -->
+  <!-- Stand-in only. Replace it with a scan or photo of your own drawing. -->
   <rect width="1000" height="560" fill="#fff"/>
-  <g transform="rotate(-14 500 280)">
-    <path fill="#000" d="M60 285 C120 245 260 215 420 210 L540 95 L585 222 C680 230 780 245 850 255 L965 140 L925 275 L975 380 L855 298 C760 315 650 330 560 335 C520 338 470 340 440 339 L470 470 L330 332 C230 330 120 315 60 285 Z"/>
-    <g stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round">
-      <path d="M268 255 q12 28 0 56"/>
-      <path d="M292 252 q12 30 0 60"/>
-      <path d="M316 251 q12 30 0 62"/>
+  <g transform="translate(0 30) rotate(-6 500 260)">
+    <!-- Fins behind the body -->
+    <path fill="#151515" d="M410 178 C440 138 462 100 482 64 C498 110 520 152 562 184 Z"/>
+    <path fill="#151515" d="M738 214 L760 186 L776 220 Z"/>
+    <path fill="#151515" d="M732 284 L752 310 L770 280 Z"/>
+    <path fill="#151515" d="M588 298 L614 332 L632 298 Z"/>
+    <!-- Body, nose on the left, crescent tail with the longer upper lobe -->
+    <path fill="#151515" d="M70 252 C110 222 190 196 300 184 C380 176 440 172 500 176 C610 184 720 208 800 228 L838 236 L918 116 C904 172 892 214 882 252 L938 334 L842 264 C760 274 680 292 600 300 C520 306 470 310 420 312 C330 314 250 306 190 296 C140 288 100 276 70 252 Z"/>
+    <!-- Light belly (countershading) -->
+    <path fill="#cfcfcf" d="M96 266 C160 270 230 272 300 268 C360 265 400 272 440 268 C520 262 650 256 800 244 L842 264 C760 274 680 292 600 300 C520 306 470 310 420 312 C330 314 250 306 190 296 C142 288 112 279 96 266 Z"/>
+    <!-- Pectoral fin over the belly -->
+    <path fill="#151515" d="M318 300 C360 346 402 388 456 428 C434 382 422 346 414 312 Z"/>
+    <!-- Gill slits, eye, mouth -->
+    <g stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none">
+      <path d="M262 214 q8 22 2 46"/>
+      <path d="M280 210 q8 24 2 50"/>
+      <path d="M298 208 q8 26 2 54"/>
+      <path d="M316 207 q8 26 2 56"/>
     </g>
-    <circle cx="150" cy="262" r="9" fill="#fff"/>
+    <circle cx="168" cy="230" r="8" fill="#fff"/>
+    <circle cx="169" cy="230" r="4.5" fill="#151515"/>
+    <path d="M118 276 Q168 292 214 284" stroke="#151515" stroke-width="5" fill="none" stroke-linecap="round"/>
   </g>
 </svg>
