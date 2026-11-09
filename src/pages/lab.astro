@@ -33,6 +33,7 @@ import Base from '../layouts/Base.astro';
 
 <script>
   import { toAscii } from '../lib/index.ts';
+  import { getFont, getBaselineOffset } from '../lib/characters.ts';
 
   const COLS = 80; // characters per row; try changing this
   const MAX_WIDTH = 800; // big photos are scaled down so there are fewer pixels to read
@@ -52,13 +53,14 @@ import Base from '../layouts/Base.astro';
     const cellWidth = width / COLS;
     const cellHeight = height / lines.length;
 
-    outputCtx.font = `${cellWidth * 1.6}px ui-monospace, Menlo, Consolas, monospace`;
-    outputCtx.textBaseline = 'top';
+    outputCtx.font = getFont(cellWidth);
+    outputCtx.textBaseline = 'alphabetic';
     outputCtx.fillStyle = '#f2f2f2';
-
+    const baselineOffset = getBaselineOffset(outputCtx, cellHeight);
+    
     lines.forEach((line, row) => {
       for (let col = 0; col < line.length; col++){
-        outputCtx.fillText(line[col], col * cellWidth, row * cellHeight)
+        outputCtx.fillText(line[col], col * cellWidth, row * cellHeight + baselineOffset);
       }
     })
   }
