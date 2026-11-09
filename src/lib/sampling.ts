@@ -7,51 +7,69 @@
  * @param y row of the pixel to sample, 0 is topmost
  * @returns the lightness of the pixel, 0.0 (black) to 1.0 (white)
  */
-function getLightness(image: ImageData, x: number, y: number) {
-  // https://en.wikipedia.org/wiki/Relative_luminance
-  const r = image.data[(y * image.width + x) * 4 + 0];
-  const g = image.data[(y * image.width + x) * 4 + 1];
-  const b = image.data[(y * image.width + x) * 4 + 2];
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+export function getLightness(image: ImageData, x: number, y: number) {
+    // https://en.wikipedia.org/wiki/Relative_luminance
+    const index = (y * image.width + x) * 4;
+    const r = image.data[index + 0];
+    const g = image.data[index + 1];
+    const b = image.data[index + 2];
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
 
-/**
- * Get the average lightness of a set of points in an image.
+/** 
+ * Get the two regions of a cell to sample for lightness. Each region is a circle, with a center and a radius.
  * 
- * @param image every pixel of the picture. image.data is one flat list:
- *              [r, g, b, a, r, g, b, a, ...], row by row, from the top left.
- * @param points a list of points to sample, each with x and y coordinates
- * @returns the average lightness of the points, 0.0 (black) to 1.0 (white)
+ * @param cellWidth the width of a cell in pixels
+ * @param cellHeight the height of a cell in pixels
+ * @returns the two regions of a cell to sample for lightness, each with a center and a radius
  */
-export function getAverageLightness(image: ImageData, points: { x: number; y: number }[]) {
-  let totalLightness = 0;
-  for (const point of points) {
-    totalLightness += getLightness(image, point.x, point.y);
-  }
-  return totalLightness / points.length;
+export function getRegions(cellWidth: number, cellHeight: number) {
+    return [
+        { x: cellWidth / 2, y: cellHeight * 0.25, radius: cellWidth / 2 }, // top
+        { x: cellWidth / 2, y: cellHeight * 0.75, radius: cellWidth / 2 }, // bottom
+    ];
 }
 
 /**
- * Get an evenly spaced grid of sample points within a cell of an image.
- * The points are the same on every call, so the same image always gives the same result.
- *
- * @param col the column of the cell, 0 is leftmost
- * @param row the row of the cell, 0 is topmost
- * @param cellWidth the width of the cell in pixels
- * @param cellHeight the height of the cell in pixels
- * @param pointsPerSide how many points across and down, so 3 gives a 3x3 grid of 9 points
- * @returns a list of points with x and y coordinates, each within the bounds of the cell
+ * Get the vector for a cell in an image, based on the average lightness in two regions of the cell.
+ * 
+ * @param image the image to sample, with pixels in image.data as a flat list: [r, g, b, a, r, g, b, a, ...], row by row, from the top left
+ * @param col the column of the cell to sample, 0 is leftmost
+ * @param row the row of the cell to sample, 0 is topmost
+ * @param cellWidth the width of a cell in pixels
+ * @param cellHeight the height of a cell in pixels
+ * @param regions the two regions of a cell to sample for lightness, each with a center and a radius
+ * @returns the vector for the cell, with two values: the average lightness in the top region and the average lightness in the bottom region
  */
-export function samplePoints(col: number, row: number, cellWidth: number, cellHeight: number, pointsPerSide: number): { x: number; y: number }[] {
-    const points = [];
-    for (let j = 0; j < pointsPerSide; j++) {
-        for (let i = 0; i < pointsPerSide; i++) {
-            // The + 0.5 centers each point in its share of the cell.
-            // With one point per side, this is the center of the cell.
-            const x = Math.floor((col + (i + 0.5) / pointsPerSide) * cellWidth);
-            const y = Math.floor((row + (j + 0.5) / pointsPerSide) * cellHeight);
-            points.push({ x, y });
+export function getCellVector(
+    image: ImageData,
+    col: number,
+    row: number,
+    cellWidth: number,
+    cellHeight: number,
+    regions: { x: number; y: number; radius: number }[],
+) {
+    // The cell's top-left corner in the full image
+    const cellX = col * cellWidth;
+    const cellY = row * cellHeight;
+
+    return regions.map((region) => {
+        // Loop y from Math.floor(row * cellHeight) up to, not including, Math.floor((row + 1) * cellHeight).
+        // Loop x the same way, using col and cellWidth.
+        let total = 0;
+        let count = 0;
+        for (let y = Math.floor(cellY); y < Math.floor((row + 1) * cellHeight); y++) {
+            for (let x = Math.floor(cellX); x < Math.floor((col + 1) * cellWidth); x++) {
+                const dx = x + 0.5 - (cellX + region.x);
+                const dy = y + 0.5 - (cellY + region.y);
+                if (dx * dx + dy * dy <= region.radius * region.radius) {
+                    // For pixels inside this circle, add 1 - getLightness(image, x, y) to total and add 1 to count.
+                    total += 1 - getLightness(image, x, y);
+                    count += 1;
+                }
+            }
         }
-    }
-    return points;
+        // Return total / count, or 0 if count is 0.
+        return count > 0 ? (total / count) : 0;
+    });
 }
