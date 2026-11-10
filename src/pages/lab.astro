@@ -44,7 +44,7 @@ import Base from '../layouts/Base.astro';
   const outputCtx = output.getContext('2d')!;
   const fileInput = document.querySelector<HTMLInputElement>('[data-file]')!;
 
-  function drawAscii(lines: string[], width: number, height: number){
+  function drawAscii(lines: string[], width: number, height: number) {
     // Same size as the original. Setting these also clears the canvas and
     // resets its settings, so they have to come before the font.
     output.width = width;
@@ -57,12 +57,12 @@ import Base from '../layouts/Base.astro';
     outputCtx.textBaseline = 'alphabetic';
     outputCtx.fillStyle = '#f2f2f2';
     const baselineOffset = getBaselineOffset(outputCtx, cellHeight);
-    
+
     lines.forEach((line, row) => {
-      for (let col = 0; col < line.length; col++){
+      for (let col = 0; col < line.length; col++) {
         outputCtx.fillText(line[col], col * cellWidth, row * cellHeight + baselineOffset);
       }
-    })
+    });
   }
   function render(img: HTMLImageElement) {
     // 1. Draw the image onto a canvas, on white so transparent images still work.

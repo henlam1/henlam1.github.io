@@ -33,7 +33,11 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
   const regions = getRegions(cellWidth, cellHeight);
 
   // Build the character vectors and normalized vectors once per cell update, and cache them for future calls to toAscii(). This is important because getCharacterVectors() is expensive, and we don't want to do it every time we render a new image.
-  if (cachedWidth !== cellWidth || cachedHeight !== cellHeight || cachedNormalizedVectors === null) {
+  if (
+    cachedWidth !== cellWidth ||
+    cachedHeight !== cellHeight ||
+    cachedNormalizedVectors === null
+  ) {
     cachedWidth = cellWidth;
     cachedHeight = cellHeight;
     const characterVectors = getCharacterVectors(CHARS, cellWidth, cellHeight);
@@ -47,7 +51,6 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
       // Version 2: shape matching
       const cellVector = getCellVector(image, col, row, cellWidth, cellHeight, regions);
       line += getNearestCharacter(cellVector, cachedNormalizedVectors);
-
     }
     lines.push(line);
   }

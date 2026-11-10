@@ -10,17 +10,25 @@ const resumeHref = asset(profile.resume);
 ---
 
 <Base>
-  <a class="skip" href="#projects">Skip to projects</a>
+  <a class="skip" href="#projects">
+    Skip to projects
+  </a>
 
   <header class="nav">
     <div class="wrap nav__inner">
-      <a href="#top" class="nav__name">{profile.name}</a>
+      <a href="#top" class="nav__name">
+        {profile.name}
+      </a>
       <nav aria-label="Sections">
         <a href="#about">About</a>
         <a href="#projects">Projects</a>
         <a href="#experience">Experience</a>
         <a href="#contact">Contact</a>
-        {resumeHref && <a href={resumeHref} target="_blank">Resume<span class="sr-only"> (opens in a new tab)</span></a>}
+        {resumeHref && (
+          <a href={resumeHref} target="_blank">
+            Resume<span class="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
       </nav>
     </div>
   </header>
@@ -29,20 +37,24 @@ const resumeHref = asset(profile.resume);
     <section class="hero wrap">
       <div class="hero__text">
         <h1 class="hero__name">
-          {
-            profile.lettering ? (
-              <img src={asset(profile.lettering)} alt={profile.name} />
-            ) : (
-              profile.name
-            )
-          }
+          {profile.lettering ? (
+            <img src={asset(profile.lettering)} alt={profile.name} />
+          ) : (
+            profile.name
+          )}
         </h1>
         <p class="hero__tagline">{profile.tagline}</p>
         {profile.status && <p class="hero__status">{profile.status}</p>}
         <div class="hero__actions">
-          <a class="btn" href="#projects">See my projects</a>
-          <a class="btn btn--ghost" href={profile.links.github} target="_blank" rel="noopener">GitHub<span class="sr-only"> (opens in a new tab)</span></a>
-          <a class="btn btn--ghost" href={profile.links.linkedin} target="_blank" rel="noopener">LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>
+          <a class="btn" href="#projects">
+            See my projects
+          </a>
+          <a class="btn btn--ghost" href={profile.links.github} target="_blank" rel="noopener">
+            GitHub<span class="sr-only"> (opens in a new tab)</span>
+          </a>
+          <a class="btn btn--ghost" href={profile.links.linkedin} target="_blank" rel="noopener">
+            LinkedIn<span class="sr-only"> (opens in a new tab)</span>
+          </a>
         </div>
       </div>
       <ArtViewer />
@@ -53,37 +65,35 @@ const resumeHref = asset(profile.resume);
       <div class="wrap">
         <h2>About</h2>
         <div class="about">
-          {profile.photo && <img class="about__photo" src={asset(profile.photo)} alt={`Photo of ${profile.name}`} />}
+          {profile.photo && (
+            <img class="about__photo" src={asset(profile.photo)} alt={`Photo of ${profile.name}`} />
+          )}
           <p class="about__text">{profile.about}</p>
           <p class="about__where">Based in {profile.location}</p>
           <div class="about__cols">
             <div>
               <h3>Education</h3>
               <ul class="edu">
-                {
-                  education.map((e) => (
-                    <li>
-                      <div class="edu__head">
-                        <span class="edu__degree">{e.degree}</span>
-                        <span class="edu__dates">{e.dates}</span>
-                      </div>
-                      <p class="edu__school">{e.note ? `${e.school}, ${e.note}` : e.school}</p>
-                    </li>
-                  ))
-                }
+                {education.map((e) => (
+                  <li>
+                    <div class="edu__head">
+                      <span class="edu__degree">{e.degree}</span>
+                      <span class="edu__dates">{e.dates}</span>
+                    </div>
+                    <p class="edu__school">{e.note ? `${e.school}, ${e.note}` : e.school}</p>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
               <h3>Skills</h3>
               <dl class="skills">
-                {
-                  Object.entries(skills).map(([group, items]) => (
-                    <div>
-                      <dt>{group}</dt>
-                      <dd>{items.join(', ')}</dd>
-                    </div>
-                  ))
-                }
+                {Object.entries(skills).map(([group, items]) => (
+                  <div>
+                    <dt>{group}</dt>
+                    <dd>{items.join(', ')}</dd>
+                  </div>
+                ))}
               </dl>
             </div>
           </div>
@@ -96,28 +106,45 @@ const resumeHref = asset(profile.resume);
         <div class="projects__head">
           <h2 id="projects-title">Projects</h2>
           <div class="tabs" role="tablist" aria-labelledby="projects-title">
-            <button type="button" role="tab" id="tab-software" aria-controls="panel-software" aria-selected="true">Software</button>
-            <button type="button" role="tab" id="tab-personal" aria-controls="panel-personal" aria-selected="false" tabindex="-1">Personal</button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-software"
+              aria-controls="panel-software"
+              aria-selected="true"
+            >
+              Software
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-personal"
+              aria-controls="panel-personal"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              Personal
+            </button>
           </div>
         </div>
         <div class="panels">
           <div role="tabpanel" id="panel-software" aria-labelledby="tab-software">
             <ul class="list">
-              {projects.map((p) => <ProjectRow project={p} />)}
+              {projects.map((p) => (
+                <ProjectRow project={p} />
+              ))}
             </ul>
           </div>
           <div role="tabpanel" id="panel-personal" aria-labelledby="tab-personal" hidden>
             <ul class="gallery">
-              {
-                art.map((piece) => (
-                  <li>
-                    <img src={asset(piece.src)} alt={piece.title} loading="lazy" />
-                    <p class="gallery__title">{piece.title}</p>
-                    {piece.caption && <p class="gallery__meta">{piece.caption}</p>}
-                    {piece.credit && <p class="gallery__meta">{piece.credit}</p>}
-                  </li>
-                ))
-              }
+              {art.map((piece) => (
+                <li>
+                  <img src={asset(piece.src)} alt={piece.title} loading="lazy" />
+                  <p class="gallery__title">{piece.title}</p>
+                  {piece.caption && <p class="gallery__meta">{piece.caption}</p>}
+                  {piece.credit && <p class="gallery__meta">{piece.credit}</p>}
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -128,23 +155,21 @@ const resumeHref = asset(profile.resume);
       <div class="wrap">
         <h2>Experience</h2>
         <ul class="list">
-          {
-            experience.map((x) => (
-              <li class="xp">
-                <div class="xp__head">
-                  <h3>
-                    {x.role}, {x.org}
-                  </h3>
-                  <p class="xp__dates">{x.dates}</p>
-                </div>
-                <ul class="xp__points">
-                  {x.points.map((pt) => (
-                    <li>{pt}</li>
-                  ))}
-                </ul>
-              </li>
-            ))
-          }
+          {experience.map((x) => (
+            <li class="xp">
+              <div class="xp__head">
+                <h3>
+                  {x.role}, {x.org}
+                </h3>
+                <p class="xp__dates">{x.dates}</p>
+              </div>
+              <ul class="xp__points">
+                {x.points.map((pt) => (
+                  <li>{pt}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
         </ul>
       </div>
     </section>
@@ -154,15 +179,23 @@ const resumeHref = asset(profile.resume);
         <h2>Contact</h2>
         <p>
           Email me at <a href={`mailto:${profile.email}`}>{profile.email}</a>, or find me on{' '}
-          <a href={profile.links.github} target="_blank" rel="noopener">GitHub<span class="sr-only"> (opens in a new tab)</span></a> and{' '}
-          <a href={profile.links.linkedin} target="_blank" rel="noopener">LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>.
+          <a href={profile.links.github} target="_blank" rel="noopener">
+            GitHub<span class="sr-only"> (opens in a new tab)</span>
+          </a>{' '}
+          and{' '}
+          <a href={profile.links.linkedin} target="_blank" rel="noopener">
+            LinkedIn<span class="sr-only"> (opens in a new tab)</span>
+          </a>
+          .
         </p>
       </div>
     </section>
   </main>
 
   <footer class="footer wrap">
-    <p>{profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.</p>
+    <p>
+      {profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.
+    </p>
     <a href="#top">Back to top</a>
   </footer>
 </Base>

@@ -14,35 +14,47 @@ const pieces = art
 const first = pieces[0];
 ---
 
-{
-  first && (
-    <figure class="viewer" data-viewer data-pieces={JSON.stringify(pieces)}>
-      <div class="viewer__frame">
-        <canvas role="img" aria-label={`${first.title}, shown as text characters`} />
-      </div>
+{first && (
+  <figure class="viewer" data-viewer data-pieces={JSON.stringify(pieces)}>
+    <div class="viewer__frame">
+      <canvas role="img" aria-label={`${first.title}, shown as text characters`} />
+    </div>
 
-      <div class="viewer__controls">
-        <div class="viewer__modes" role="group" aria-label="Show this piece as">
-          <button type="button" data-mode="original" aria-pressed="false">Original</button>
-          <button type="button" data-mode="ascii" aria-pressed="true">ASCII</button>
-          <button type="button" data-mode="pixel" aria-pressed="false">Pixel</button>
+    <div class="viewer__controls">
+      <div class="viewer__modes" role="group" aria-label="Show this piece as">
+        <button type="button" data-mode="original" aria-pressed="false">
+          Original
+        </button>
+        <button type="button" data-mode="ascii" aria-pressed="true">
+          ASCII
+        </button>
+        <button type="button" data-mode="pixel" aria-pressed="false">
+          Pixel
+        </button>
+      </div>
+      {pieces.length > 1 && (
+        <div class="viewer__nav">
+          <button type="button" data-step="-1" aria-label="Previous piece">
+            ‹
+          </button>
+          <button type="button" data-step="1" aria-label="Next piece">
+            ›
+          </button>
         </div>
-        {pieces.length > 1 && (
-          <div class="viewer__nav">
-            <button type="button" data-step="-1" aria-label="Previous piece">‹</button>
-            <button type="button" data-step="1" aria-label="Next piece">›</button>
-          </div>
-        )}
-      </div>
+      )}
+    </div>
 
-      <figcaption class="viewer__caption">
-        <span data-title>{first.title}</span>
-        <span class="viewer__muted" data-caption>{first.caption}</span>
-        <a href="#projects" data-open-tab="personal">See all my art</a>
-      </figcaption>
-    </figure>
-  )
-}
+    <figcaption class="viewer__caption">
+      <span data-title>{first.title}</span>
+      <span class="viewer__muted" data-caption>
+        {first.caption}
+      </span>
+      <a href="#projects" data-open-tab="personal">
+        See all my art
+      </a>
+    </figcaption>
+  </figure>
+)}
 
 <script>
   type Mode = 'original' | 'ascii' | 'pixel';
@@ -55,7 +67,11 @@ const first = pieces[0];
   const SETTLE_MS = 350; // how long one character takes to settle
   const PIXEL_MS = 450; // blocks shrink from coarse to final over this long
   const FADE_MS = 300;
-  const MODE_LABEL = { original: 'shown as the original', ascii: 'shown as text characters', pixel: 'shown as pixels' };
+  const MODE_LABEL = {
+    original: 'shown as the original',
+    ascii: 'shown as text characters',
+    pixel: 'shown as pixels',
+  };
 
   function hash(i: number, seed = 0) {
     let h = Math.imul(i ^ seed, 2654435761);
@@ -95,9 +111,13 @@ const first = pieces[0];
         restart();
       }),
     );
-    root.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) =>
-      b.addEventListener('click', () => show((index + Number(b.dataset.step) + pieces.length) % pieces.length)),
-    );
+    root
+      .querySelectorAll<HTMLButtonElement>('[data-step]')
+      .forEach((b) =>
+        b.addEventListener('click', () =>
+          show((index + Number(b.dataset.step) + pieces.length) % pieces.length),
+        ),
+      );
     new ResizeObserver(resize).observe(canvas);
     show(0);
 
@@ -193,7 +213,12 @@ const first = pieces[0];
             const level = Math.round(ink[r * cols + c] * 3) / 3; // four tones, like a limited palette
             if (level <= 0) continue;
             ctx.globalAlpha = level;
-            ctx.fillRect(Math.floor(c * block), Math.floor(r * block), Math.ceil(block), Math.ceil(block));
+            ctx.fillRect(
+              Math.floor(c * block),
+              Math.floor(r * block),
+              Math.ceil(block),
+              Math.ceil(block),
+            );
           }
         }
         ctx.globalAlpha = 1;

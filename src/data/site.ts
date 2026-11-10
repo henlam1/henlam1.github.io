@@ -49,7 +49,17 @@ export const projects: Project[] = [
     title: 'GoPack',
     description:
       'A trip packing-list app with AI packing suggestions that cut manual edits by about 35%. React Query caching cut redundant API calls by about 40%, and 100+ unit and end-to-end tests run in CI.',
-    tech: ['TypeScript', 'React', 'Node.js', 'Express', 'MongoDB', 'OpenAI API', 'Jest', 'Playwright', 'AWS'],
+    tech: [
+      'TypeScript',
+      'React',
+      'Node.js',
+      'Express',
+      'MongoDB',
+      'OpenAI API',
+      'Jest',
+      'Playwright',
+      'AWS',
+    ],
     repo: 'https://github.com/henlam1/GoPack',
     live: 'https://gopack-client.onrender.com',
     year: '2024–25',
@@ -135,8 +145,17 @@ export const experience: Experience[] = [
 
 // Most recent first.
 export const education: { degree: string; school: string; dates: string; note?: string }[] = [
-  { degree: 'M.Eng. in Computer Science', school: 'Cornell Tech, Cornell University', dates: 'Expected May 2027' },
-  { degree: 'B.S. in Computer Science', school: 'Stony Brook University', dates: '2020–2024', note: '3.7 GPA, magna cum laude' },
+  {
+    degree: 'M.Eng. in Computer Science',
+    school: 'Cornell Tech, Cornell University',
+    dates: 'Expected May 2027',
+  },
+  {
+    degree: 'B.S. in Computer Science',
+    school: 'Stony Brook University',
+    dates: '2020–2024',
+    note: '3.7 GPA, magna cum laude',
+  },
 ];
 
 // Grouped skills. Only list things you'd be comfortable being asked about in an interview.

@@ -16,12 +16,25 @@ const { project } = Astro.props;
       {project.title} <span class="row__year">{project.year}</span>
     </h3>
     <p class="row__desc">{project.description}</p>
-    <p class="row__tech"><span class="sr-only">Built with </span>{project.tech.join(', ')}</p>
+    <p class="row__tech">
+      <span class="sr-only">Built with </span>
+      {project.tech.join(', ')}
+    </p>
   </div>
 
   <div class="row__links">
-    {project.live && <a class="btn btn--ghost btn--small" href={project.live} target="_blank" rel="noopener">{project.liveLabel ?? 'Live demo'}<span class="sr-only"> of {project.title} (opens in a new tab)</span></a>}
-    {project.repo && <a class="btn btn--ghost btn--small" href={project.repo} target="_blank" rel="noopener">{project.repoLabel ?? 'GitHub'}<span class="sr-only"> for {project.title} (opens in a new tab)</span></a>}
+    {project.live && (
+      <a class="btn btn--ghost btn--small" href={project.live} target="_blank" rel="noopener">
+        {project.liveLabel ?? 'Live demo'}
+        <span class="sr-only"> of {project.title} (opens in a new tab)</span>
+      </a>
+    )}
+    {project.repo && (
+      <a class="btn btn--ghost btn--small" href={project.repo} target="_blank" rel="noopener">
+        {project.repoLabel ?? 'GitHub'}
+        <span class="sr-only"> for {project.title} (opens in a new tab)</span>
+      </a>
+    )}
     {!project.repo && project.note && <p class="row__note">{project.note}</p>}
   </div>
 </li>
