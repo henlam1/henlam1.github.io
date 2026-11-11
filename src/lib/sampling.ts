@@ -17,29 +17,35 @@ export function getLightness(image: ImageData, x: number, y: number) {
 }
 
 /**
- * Get the two regions of a cell to sample for lightness. Each region is a circle, with a center and a radius.
+ * Get the six regions of a cell to sample for lightness. Each region is a circle, with a center and a radius.
  *
  * @param cellWidth the width of a cell in pixels
  * @param cellHeight the height of a cell in pixels
- * @returns the two regions of a cell to sample for lightness, each with a center and a radius
+ * @returns the six regions of a cell to sample for lightness, each with a center and a radius
  */
 export function getRegions(cellWidth: number, cellHeight: number) {
-  return [
-    { x: cellWidth / 2, y: cellHeight * 0.25, radius: cellWidth / 2 }, // top
-    { x: cellWidth / 2, y: cellHeight * 0.75, radius: cellWidth / 2 }, // bottom
-  ];
+  const STAGGER = 0.04 * cellHeight; // how far to stagger the left and right columns, as a fraction of cellHeight
+  const X_POS = [cellWidth * 0.25, cellWidth * 0.75]; // x positions of the two circles in each row
+  const Y_POS = [(cellHeight * 1) / 6, (cellHeight * 1) / 2, (cellHeight * 5) / 6]; // y positions of the three rows of circles
+  let regions: { x: number; y: number; radius: number }[] = [];
+  for (let y of Y_POS) {
+    for (let x of X_POS) {
+      regions.push({ x, y: y + (x === X_POS[0] ? STAGGER : -STAGGER), radius: cellWidth / 3 });
+    }
+  }
+  return regions;
 }
 
 /**
- * Get the vector for a cell in an image, based on the average lightness in two regions of the cell.
+ * Get the vector for a cell in an image, based on the average lightness in six regions of the cell.
  *
  * @param image the image to sample, with pixels in image.data as a flat list: [r, g, b, a, r, g, b, a, ...], row by row, from the top left
  * @param col the column of the cell to sample, 0 is leftmost
  * @param row the row of the cell to sample, 0 is topmost
  * @param cellWidth the width of a cell in pixels
  * @param cellHeight the height of a cell in pixels
- * @param regions the two regions of a cell to sample for lightness, each with a center and a radius
- * @returns the vector for the cell, with two values: the average lightness in the top region and the average lightness in the bottom region
+ * @param regions the six regions of a cell to sample for lightness, each with a center and a radius
+ * @returns the vector for the cell, with six values
  */
 export function getCellVector(
   image: ImageData,

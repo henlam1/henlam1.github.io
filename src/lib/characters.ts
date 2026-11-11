@@ -25,15 +25,15 @@ export function getBaselineOffset(ctx: CanvasRenderingContext2D, cellHeight: num
 }
 
 /**
- * Get the vectors for a list of characters, based on their lightness in two regions of a cell.
+ * Get the vectors for a list of characters, based on their lightness in six regions of a cell.
  *
  * @param chars characters to measure
  * @param cellWidth width of a cell in pixels
  * @param cellHeight height of a cell in pixels
- * @returns the list of characters with their corresponding vectors, where each vector has two values: the average lightness in the top region and the average lightness in the bottom region
+ * @returns the list of characters with their corresponding vectors, where each vector has six values
  */
 export function getCharacterVectors(chars: string[], cellWidth: number, cellHeight: number) {
-  // 1. Make the two circles (the regions list from part 2)
+  // 1. Make the six circles (the regions list from part 3)
   const regions = getRegions(cellWidth, cellHeight);
 
   // 2. Make the hidden canvas and set its size
@@ -107,8 +107,8 @@ export function normalizeVectors(characters: { char: string; vector: number[] }[
 /**
  * Get the character whose vector is closest to the given cell vector, using Euclidean distance.
  *
- * @param cellVector the vector for the cell, with two values: the average lightness in the top region and the average lightness in the bottom region
- * @param characters the list of characters with their corresponding vectors, where each vector has two values: the average lightness in the top region and the average lightness in the bottom region
+ * @param cellVector the vector for the cell, with six values
+ * @param characters the list of characters with their corresponding vectors, where each vector has six values
  * @returns the character whose vector is closest to the cell vector, using Euclidean distance
  */
 export function getNearestCharacter(
