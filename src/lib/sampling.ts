@@ -119,6 +119,11 @@ export function enhanceContrast(vector: number[], exponent: number) {
   if (max === 0) return vector;
 
   // Normalize vector and enhance contrast with exponents before denormalizing
-  const contrastEnhancedVector = vector.map((num) => (num / max) ** exponent * max);
+  const contrastEnhancedVector = vector.map((num) => {
+    num = num / max; // Normalize
+    num = Math.pow(num, exponent);
+    num = num * max; // Denormalize
+    return num;
+  });
   return contrastEnhancedVector;
 }
