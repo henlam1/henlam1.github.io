@@ -59,23 +59,54 @@ export function getCellVector(
   const cellX = col * cellWidth;
   const cellY = row * cellHeight;
 
+  // Run once per circle. Each run returns one number (how much ink is in that
+  // circle), so the result is a list with one number per circle.
   return regions.map((region) => {
-    // Loop y from Math.floor(row * cellHeight) up to, not including, Math.floor((row + 1) * cellHeight).
-    // Loop x the same way, using col and cellWidth.
-    let total = 0;
-    let count = 0;
-    for (let y = Math.floor(cellY); y < Math.floor((row + 1) * cellHeight); y++) {
-      for (let x = Math.floor(cellX); x < Math.floor((col + 1) * cellWidth); x++) {
-        const dx = x + 0.5 - (cellX + region.x);
-        const dy = y + 0.5 - (cellY + region.y);
-        if (dx * dx + dy * dy <= region.radius * region.radius) {
-          // For pixels inside this circle, add 1 - getLightness(image, x, y) to total and add 1 to count.
+    let total = 0; // ink added up over every pixel inside the circle
+    let count = 0; // how many pixels were inside the circle
+
+    // The circle's centre in the full image. region.x and region.y are
+    // measured from the cell's corner, so add the cell's corner to them.
+    const cx = cellX + region.x;
+    const cy = cellY + region.y;
+
+    // The box around the circle, in pixel numbers. The loops below go from
+    // top up to (not including) bot, and from left up to (not including)
+    // right, so bot and right are the first row/column NOT visited.
+    // Math.max / Math.min stop the box at the cell's edges, because some
+    // circles stick out of the cell.
+    const top = Math.max(Math.floor(cy - region.radius), Math.floor(cellY));
+    const bot = Math.min(Math.ceil(cy + region.radius), Math.floor(cellY + cellHeight));
+    const left = Math.max(Math.floor(cx - region.radius), Math.floor(cellX));
+    const right = Math.min(Math.ceil(cx + region.radius), Math.floor(cellX + cellWidth));
+
+    // Radius squared, worked out once instead of for every pixel.
+    const r2 = region.radius ** 2;
+
+    // Visit every pixel in the box, one row (y) at a time, left to right (x).
+    for (let y = top; y < bot; y++) {
+      for (let x = left; x < right; x++) {
+        // How far this pixel's centre is from the circle's centre.
+        // (x, y) is the pixel's top-left corner; + 0.5 moves to its middle.
+        const dx = x + 0.5 - cx;
+        const dy = y + 0.5 - cy;
+
+        // Pythagoras: the pixel is inside the circle when its distance from
+        // the centre is at most the radius. Comparing squared values skips
+        // the square root, which gives the same answer and is faster.
+        if (dx * dx + dy * dy <= r2) {
+          // getLightness is 1 for white paper and 0 for black ink, so
+          // 1 - lightness is "how much ink": 0 for paper, 1 for solid ink.
           total += 1 - getLightness(image, x, y);
           count += 1;
         }
+        // Pixels in the box's corners fail the check and are skipped.
       }
     }
-    // Return total / count, or 0 if count is 0.
+
+    // The average ink in this circle, from 0 (empty) to 1 (full).
+    // count is 0 only if the circle missed every pixel; return 0 instead
+    // of dividing by zero.
     return count > 0 ? total / count : 0;
   });
 }
