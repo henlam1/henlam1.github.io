@@ -89,12 +89,12 @@ import Base from '../layouts/Base.astro';
 
       // Move and tilt the shark
       ctx.save();
+
       const x = Math.sin(time / 1000) * 40;
       const y = Math.cos(time / 1000) * 40;
       ctx.translate(0.5 * canvas.width + x, 0.5 * canvas.height);
       ctx.rotate((x + y) / 600);
       ctx.translate(-0.5 * canvas.width, -0.5 * canvas.height);
-
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       ctx.restore();
