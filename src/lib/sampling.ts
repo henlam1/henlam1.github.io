@@ -110,3 +110,15 @@ export function getCellVector(
     return count > 0 ? total / count : 0;
   });
 }
+
+export function enhanceContrast(vector: number[], exponent: number) {
+  // Global contrast enhancement
+  const max = Math.max(...vector);
+
+  // Edge case if max === 0 so we avoid division by zero errors
+  if (max === 0) return vector;
+
+  // Normalize vector and enhance contrast with exponents before denormalizing
+  const contrastEnhancedVector = vector.map((num) => (num / max) ** exponent * max);
+  return contrastEnhancedVector;
+}

@@ -1,5 +1,5 @@
 import { getCharacterVectors, getNearestCharacter, normalizeVectors } from './characters.js';
-import { getCellVector, getRegions } from './sampling.js';
+import { getCellVector, getRegions, enhanceContrast } from './sampling.js';
 
 // Your ASCII renderer. The lab page (src/pages/lab.astro) calls toAscii()
 // and prints the result, so open http://localhost:4321/lab while you work.
@@ -48,9 +48,10 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
   for (let row = 0; row < rows; row++) {
     let line = '';
     for (let col = 0; col < cols; col++) {
-      // Version 2: shape matching
+      // Version 3: shape matching with contrast enhancement
       const cellVector = getCellVector(image, col, row, cellWidth, cellHeight, regions);
-      line += getNearestCharacter(cellVector, cachedNormalizedVectors);
+      const contrastEnhancedVector = enhanceContrast(cellVector, 3);
+      line += getNearestCharacter(contrastEnhancedVector, cachedNormalizedVectors);
     }
     lines.push(line);
   }
