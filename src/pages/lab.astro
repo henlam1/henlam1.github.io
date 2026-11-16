@@ -129,7 +129,9 @@ import Base from '../layouts/Base.astro';
     if (file) load(URL.createObjectURL(file));
   });
 
-  load(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/art/stand-in.svg`);
+  // Test image: a disc, a fan of thin lines and a triangle. Swap back to
+  // stand-in.svg for the shark.
+  load(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/art/test-pattern.svg`);
 </script>
 
 <style>

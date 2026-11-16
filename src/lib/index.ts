@@ -1,5 +1,12 @@
 import { getCharacterVectors, getNearestCharacter, normalizeVectors } from './characters.js';
-import { getCellVector, getRegions, enhanceContrast } from './sampling.js';
+import {
+  getCellVector,
+  getRegions,
+  enhanceContrast,
+  getVogelOffsets,
+  getExternalRegions,
+  enhanceDirectional,
+} from './sampling.js';
 
 // Your ASCII renderer. The lab page (src/pages/lab.astro) calls toAscii()
 // and prints the result, so open http://localhost:4321/lab while you work.
@@ -9,6 +16,8 @@ import { getCellVector, getRegions, enhanceContrast } from './sampling.js';
 //   1. Brightness: give each cell one brightness and pick a character from CHARS.
 //   2. Sharper: sample several points per cell and match that pattern to the
 //      shape of each character (the article's "shape vectors").
+//   3. Contrast: directional enhancement (using circles just outside the cell)
+//      and then global enhancement, to sharpen edges between and inside cells.
 
 // List of every printable character, from space to tilde. The ASCII table has 95 printable characters, from 32 (space) to 126 (tilde).
 export const CHARS = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i));
@@ -30,7 +39,9 @@ let cachedNormalizedVectors: { char: string; vector: number[] }[] | null = null;
 export function toAscii(image: ImageData, cols: number, rows: number): string[] {
   const cellWidth = image.width / cols; // how many pixels across each character covers
   const cellHeight = image.height / rows; // how many pixels down each character covers
-  const regions = getRegions(cellWidth, cellHeight);
+  const regions = getRegions(cellWidth, cellHeight); // circular regions to sample points from
+  const externalRegions = getExternalRegions(cellWidth, cellHeight); // external circular regions
+  const offsets = getVogelOffsets(10, regions[0].radius); // offsets to generate point samples
 
   // Build the character vectors and normalized vectors once per cell update, and cache them for future calls to toAscii(). This is important because getCharacterVectors() is expensive, and we don't want to do it every time we render a new image.
   if (
@@ -48,9 +59,19 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
   for (let row = 0; row < rows; row++) {
     let line = '';
     for (let col = 0; col < cols; col++) {
-      // Version 3: shape matching with contrast enhancement
-      const cellVector = getCellVector(image, col, row, cellWidth, cellHeight, regions);
-      const contrastEnhancedVector = enhanceContrast(cellVector, 3);
+      // Version 3: shape matching with directional and global contrast enhancement
+      const cellVector = getCellVector(image, col, row, cellWidth, cellHeight, regions, offsets);
+      const externalVector = getCellVector(
+        image,
+        col,
+        row,
+        cellWidth,
+        cellHeight,
+        externalRegions,
+        offsets,
+      );
+      const directionalVector = enhanceDirectional(cellVector, externalVector, 3);
+      const contrastEnhancedVector = enhanceContrast(directionalVector, 3);
       line += getNearestCharacter(contrastEnhancedVector, cachedNormalizedVectors);
     }
     lines.push(line);

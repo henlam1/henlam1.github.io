@@ -24,16 +24,23 @@ export function getLightness(image: ImageData, x: number, y: number) {
  * @returns the six regions of a cell to sample for lightness, each with a center and a radius
  */
 export function getRegions(cellWidth: number, cellHeight: number) {
-  const STAGGER = 0.04 * cellHeight; // how far to stagger the left and right columns, as a fraction of cellHeight
-  const X_POS = [cellWidth * 0.25, cellWidth * 0.75]; // x positions of the two circles in each row
-  const Y_POS = [(cellHeight * 1) / 6, (cellHeight * 1) / 2, (cellHeight * 5) / 6]; // y positions of the three rows of circles
-  let regions: { x: number; y: number; radius: number }[] = [];
-  for (let y of Y_POS) {
-    for (let x of X_POS) {
-      regions.push({ x, y: y + (x === X_POS[0] ? STAGGER : -STAGGER), radius: cellWidth / 3 });
-    }
-  }
-  return regions;
+  // The six circle centres, as [x, y] fractions of the cell's width and height.
+  // Order: top left, top right, middle left, middle right, bottom left, bottom right.
+  // From Alex Harri's article; the outside circles are positioned around these.
+  const POINTS = [
+    [0.3, 0.23],
+    [0.7, 0.18],
+    [0.3, 0.5],
+    [0.7, 0.5],
+    [0.3, 0.82],
+    [0.7, 0.77],
+  ];
+  const radius = 0.28125 * Math.min(cellWidth, cellHeight);
+
+  // Map each point into a region object
+  return POINTS.map(([fx, fy]) => {
+    return { x: fx * cellWidth, y: fy * cellHeight, radius };
+  });
 }
 
 /**
@@ -45,6 +52,7 @@ export function getRegions(cellWidth: number, cellHeight: number) {
  * @param cellWidth the width of a cell in pixels
  * @param cellHeight the height of a cell in pixels
  * @param regions the six regions of a cell to sample for lightness, each with a center and a radius
+ * @param offsets the sample points to read in each circle, as distances from the circle's center (from getVogelOffsets)
  * @returns the vector for the cell, with six values
  */
 export function getCellVector(
@@ -54,6 +62,7 @@ export function getCellVector(
   cellWidth: number,
   cellHeight: number,
   regions: { x: number; y: number; radius: number }[],
+  offsets: { dx: number; dy: number }[],
 ) {
   // The cell's top-left corner in the full image
   const cellX = col * cellWidth;
@@ -62,55 +71,42 @@ export function getCellVector(
   // Run once per circle. Each run returns one number (how much ink is in that
   // circle), so the result is a list with one number per circle.
   return regions.map((region) => {
-    let total = 0; // ink added up over every pixel inside the circle
-    let count = 0; // how many pixels were inside the circle
+    let total = 0; // ink added up over every sample point in the circle
 
     // The circle's centre in the full image. region.x and region.y are
     // measured from the cell's corner, so add the cell's corner to them.
     const cx = cellX + region.x;
     const cy = cellY + region.y;
 
-    // The box around the circle, in pixel numbers. The loops below go from
-    // top up to (not including) bot, and from left up to (not including)
-    // right, so bot and right are the first row/column NOT visited.
-    // Math.max / Math.min stop the box at the cell's edges, because some
-    // circles stick out of the cell.
-    const top = Math.max(Math.floor(cy - region.radius), Math.floor(cellY));
-    const bot = Math.min(Math.ceil(cy + region.radius), Math.floor(cellY + cellHeight));
-    const left = Math.max(Math.floor(cx - region.radius), Math.floor(cellX));
-    const right = Math.min(Math.ceil(cx + region.radius), Math.floor(cellX + cellWidth));
+    // Iterate each point sample
+    for (let i = 0; i < offsets.length; i++) {
+      // Unpack width and height offset values
+      const { dx, dy } = offsets[i];
 
-    // Radius squared, worked out once instead of for every pixel.
-    const r2 = region.radius ** 2;
+      // Calculate pixel positions of each sample point
+      let x = Math.floor(cx + dx);
+      let y = Math.floor(cy + dy);
 
-    // Visit every pixel in the box, one row (y) at a time, left to right (x).
-    for (let y = top; y < bot; y++) {
-      for (let x = left; x < right; x++) {
-        // How far this pixel's centre is from the circle's centre.
-        // (x, y) is the pixel's top-left corner; + 0.5 moves to its middle.
-        const dx = x + 0.5 - cx;
-        const dy = y + 0.5 - cy;
+      // Clamp sample point within the bounds of the image
+      x = Math.max(0, Math.min(x, image.width - 1));
+      y = Math.max(0, Math.min(y, image.height - 1));
 
-        // Pythagoras: the pixel is inside the circle when its distance from
-        // the centre is at most the radius. Comparing squared values skips
-        // the square root, which gives the same answer and is faster.
-        if (dx * dx + dy * dy <= r2) {
-          // getLightness is 1 for white paper and 0 for black ink, so
-          // 1 - lightness is "how much ink": 0 for paper, 1 for solid ink.
-          total += 1 - getLightness(image, x, y);
-          count += 1;
-        }
-        // Pixels in the box's corners fail the check and are skipped.
-      }
+      // Increment total
+      total += 1 - getLightness(image, x, y);
     }
 
-    // The average ink in this circle, from 0 (empty) to 1 (full).
-    // count is 0 only if the circle missed every pixel; return 0 instead
-    // of dividing by zero.
-    return count > 0 ? total / count : 0;
+    // The average ink over the sample points, from 0 (empty) to 1 (full).
+    return total / offsets.length;
   });
 }
 
+/**
+ * Global contrast enhancement. Makes the darker values in a vector stand out more from the lighter ones, without changing the largest value.
+ *
+ * @param vector the values to enhance, from 0 (no ink) to 1 (full ink), e.g. a cell vector
+ * @param exponent how strong the effect is. 1 changes nothing; higher values push the smaller values further down
+ * @returns a new vector the same length as the input, with the contrast enhanced
+ */
 export function enhanceContrast(vector: number[], exponent: number) {
   // Global contrast enhancement
   const max = Math.max(...vector);
@@ -126,4 +122,96 @@ export function enhanceContrast(vector: number[], exponent: number) {
     return num;
   });
   return contrastEnhancedVector;
+}
+
+/**
+ * Get evenly spread sample points inside a circle, using Vogel's method (a sunflower spiral). Point 0 is the center; each later point turns by the golden angle and moves further out.
+ *
+ * @param n how many sample points to make
+ * @param radius the radius of the circle in pixels
+ * @returns n offsets, each an x and y distance in pixels from the circle's center
+ */
+export function getVogelOffsets(n: number, radius: number) {
+  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+  const offsets: { dx: number; dy: number }[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const angle = i * GOLDEN_ANGLE;
+    const distance = radius * Math.sqrt(i / n);
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    offsets.push({ dx, dy });
+  }
+  return offsets;
+}
+
+/**
+ * Get the ten regions just outside a cell, used by enhanceDirectional to see how much ink is next door.
+ * Same radius as the six inside regions; positions can be below 0 or above the cell's size.
+ *
+ * @param cellWidth the width of a cell in pixels
+ * @param cellHeight the height of a cell in pixels
+ * @returns the ten outside regions (e0–e9), each with a center (measured from the cell's top-left corner) and a radius
+ */
+export function getExternalRegions(cellWidth: number, cellHeight: number) {
+  // The ten outside circle centres, as [x, y] fractions of the cell's width and height.
+  // Values below 0 or above 1 are outside the cell. Numbered e0–e9 in the article.
+  const EXTERNAL_POINTS = [
+    [0.07, -0.21], // e0 above, left
+    [0.93, -0.21], // e1 above, right
+    [-0.25, 0.07], // e2 left side, top
+    [1.25, 0.07], // e3 right side, top
+    [-0.25, 0.5], // e4 left side, middle
+    [1.25, 0.5], // e5 right side, middle
+    [-0.25, 0.93], // e6 left side, bottom
+    [1.25, 0.93], // e7 right side, bottom
+    [0.07, 1.21], // e8 below, left
+    [0.93, 1.21], // e9 below, right
+  ];
+
+  const radius = 0.28125 * Math.min(cellWidth, cellHeight);
+
+  // Map each point into a region object
+  return EXTERNAL_POINTS.map(([fx, fy]) => {
+    return { x: fx * cellWidth, y: fy * cellHeight, radius };
+  });
+}
+
+/**
+ * Directional contrast enhancement. Each inside circle is compared with the darkest ink just outside the cell
+ * on its side. If that neighbour is darker, the circle's ink is reduced, so faint spill-over from a nearby dark
+ * shape disappears and edges between cells stay sharp. Run it before enhanceContrast.
+ *
+ * @param vector the six inside values of a cell, from 0 (no ink) to 1 (full ink), from getCellVector
+ * @param externalVector the ten outside values (e0–e9), from getCellVector with getExternalRegions
+ * @param exponent how strong the effect is. 1 changes nothing; higher values reduce faint circles more
+ * @returns a new vector of six values, with the directional contrast applied
+ */
+export function enhanceDirectional(vector: number[], externalVector: number[], exponent: number) {
+  // For each inside circle (0–5), the outside circles (e0–e9) next to it.
+  // e.g. inside circle 0 (top left) is next to e0, e1 (above) and e2, e4 (left).
+  const AFFECTING = [
+    [0, 1, 2, 4], // 0 top left
+    [0, 1, 3, 5], // 1 top right
+    [2, 4, 6], // 2 middle left
+    [3, 5, 7], // 3 middle right
+    [4, 6, 8, 9], // 4 bottom left
+    [5, 7, 8, 9], // 5 bottom right
+  ];
+
+  // Run once per inside circle. i is the circle's number (0–5).
+  return vector.map((value, i) => {
+    // The darkest ink in this circle's area: itself, or one of the outside circles next to it.
+    let max = value;
+    for (let j = 0; j < AFFECTING[i].length; j++) {
+      max = Math.max(max, externalVector[AFFECTING[i][j]]);
+    }
+
+    // No ink here or next door: leave it, instead of dividing by zero.
+    if (max === 0) return value;
+
+    // Same three steps as enhanceContrast: divide (how dark compared with the area's darkest ink),
+    // raise to the power (shrink faint circles much more than dark ones), multiply (back to ink).
+    return (value / max) ** exponent * max;
+  });
 }
