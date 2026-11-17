@@ -104,6 +104,8 @@ export const projects: Project[] = [
 export type ArtPiece = {
   title: string;
   src: string; // image in public/art/, e.g. '/art/swan.jpg'
+  frames?: number; // sprite sheets only: how many frames, side by side in one row
+  fps?: number; // sprite sheets only: frames per second
   caption?: string; // e.g. 'Pen and ink, 2025'
   credit?: string; // for studies, e.g. 'Study after [artist name]'
   // Show this piece in the homepage viewer. Pick 3–5 that look good as characters and pixels:
@@ -119,6 +121,38 @@ export const art: ArtPiece[] = [
     src: '/art/stand-in.svg',
     caption: 'Placeholder until you add your own pieces',
     featured: true,
+  },
+  {
+    title: 'Sleeping Fox',
+    src: '/art/fox-transparent.png',
+    frames: 14,
+    fps: 10,
+    caption: 'Pixel art, 2022',
+    featured: false,
+  },
+  {
+    title: 'Peonies',
+    src: '/art/9_25_24.png',
+    caption: 'Digital Art (Krita), 2024',
+    featured: false,
+  },
+  {
+    title: 'Bust Study',
+    src: '/art/1_31_25.jpg',
+    caption: 'Pencil, 2025',
+    featured: false,
+  },
+  {
+    title: 'Flower',
+    src: '/art/Illustration17.png',
+    caption: 'Digital Art (CSP), 2026',
+    featured: false,
+  },
+  {
+    title: 'Portrait',
+    src: '/art/Illustration102.png',
+    caption: 'Digital Art (CSP), 2026',
+    featured: false,
   },
 ];
 

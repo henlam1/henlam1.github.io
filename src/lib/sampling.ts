@@ -68,10 +68,10 @@ export function getCellVector(
   const cellX = col * cellWidth;
   const cellY = row * cellHeight;
 
-  // Run once per circle. Each run returns one number (how much ink is in that
-  // circle), so the result is a list with one number per circle.
+  // Run once per circle. Each run returns one number (how bright that
+  // circle is), so the result is a list with one number per circle.
   return regions.map((region) => {
-    let total = 0; // ink added up over every sample point in the circle
+    let total = 0; // lightness added up over every sample point in the circle
 
     // The circle's centre in the full image. region.x and region.y are
     // measured from the cell's corner, so add the cell's corner to them.
@@ -92,18 +92,18 @@ export function getCellVector(
       y = Math.max(0, Math.min(y, image.height - 1));
 
       // Increment total
-      total += 1 - getLightness(image, x, y);
+      total += getLightness(image, x, y);
     }
 
-    // The average ink over the sample points, from 0 (empty) to 1 (full).
+    // The average lightness over the sample points, from 0 (black) to 1 (white).
     return total / offsets.length;
   });
 }
 
 /**
- * Global contrast enhancement. Makes the darker values in a vector stand out more from the lighter ones, without changing the largest value.
+ * Global contrast enhancement. Makes the brightest values in a vector stand out more from the dimmer ones, without changing the largest value.
  *
- * @param vector the values to enhance, from 0 (no ink) to 1 (full ink), e.g. a cell vector
+ * @param vector the values to enhance, from 0 (black) to 1 (white), e.g. a cell vector
  * @param exponent how strong the effect is. 1 changes nothing; higher values push the smaller values further down
  * @returns a new vector the same length as the input, with the contrast enhanced
  */
@@ -146,7 +146,7 @@ export function getVogelOffsets(n: number, radius: number) {
 }
 
 /**
- * Get the ten regions just outside a cell, used by enhanceDirectional to see how much ink is next door.
+ * Get the ten regions just outside a cell, used by enhanceDirectional to see how bright it is next door.
  * Same radius as the six inside regions; positions can be below 0 or above the cell's size.
  *
  * @param cellWidth the width of a cell in pixels
@@ -178,11 +178,11 @@ export function getExternalRegions(cellWidth: number, cellHeight: number) {
 }
 
 /**
- * Directional contrast enhancement. Each inside circle is compared with the darkest ink just outside the cell
- * on its side. If that neighbour is darker, the circle's ink is reduced, so faint spill-over from a nearby dark
+ * Directional contrast enhancement. Each inside circle is compared with the brightest area just outside the cell
+ * on its side. If that neighbour is brighter, the circle's value is reduced, so faint spill-over from a nearby bright
  * shape disappears and edges between cells stay sharp. Run it before enhanceContrast.
  *
- * @param vector the six inside values of a cell, from 0 (no ink) to 1 (full ink), from getCellVector
+ * @param vector the six inside values of a cell, from 0 (black) to 1 (white), from getCellVector
  * @param externalVector the ten outside values (e0–e9), from getCellVector with getExternalRegions
  * @param exponent how strong the effect is. 1 changes nothing; higher values reduce faint circles more
  * @returns a new vector of six values, with the directional contrast applied
@@ -201,17 +201,17 @@ export function enhanceDirectional(vector: number[], externalVector: number[], e
 
   // Run once per inside circle. i is the circle's number (0–5).
   return vector.map((value, i) => {
-    // The darkest ink in this circle's area: itself, or one of the outside circles next to it.
+    // The brightest value in this circle's area: itself, or one of the outside circles next to it.
     let max = value;
     for (let j = 0; j < AFFECTING[i].length; j++) {
       max = Math.max(max, externalVector[AFFECTING[i][j]]);
     }
 
-    // No ink here or next door: leave it, instead of dividing by zero.
+    // All black here and next door: leave it, instead of dividing by zero.
     if (max === 0) return value;
 
-    // Same three steps as enhanceContrast: divide (how dark compared with the area's darkest ink),
-    // raise to the power (shrink faint circles much more than dark ones), multiply (back to ink).
+    // Same three steps as enhanceContrast: divide (how bright compared with the area's brightest value),
+    // raise to the power (shrink faint circles much more than bright ones), multiply (back to lightness).
     return (value / max) ** exponent * max;
   });
 }

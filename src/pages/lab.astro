@@ -17,6 +17,10 @@ import Base from '../layouts/Base.astro';
       Try your own image:
       <input type="file" accept="image/*" data-file />
     </label>
+    <label class="lab__pick">
+      Piece
+      <select data-piece></select>
+    </label>
 
     <div class="lab__panes">
       <figure>
@@ -34,6 +38,7 @@ import Base from '../layouts/Base.astro';
 <script>
   import { toAscii } from '../lib/index.ts';
   import { getFont, getBaselineOffset } from '../lib/characters.ts';
+  import { art } from '../data/site';
 
   const COLS = 80; // characters per row; try changing this
   const MAX_WIDTH = 800; // big photos are scaled down so there are fewer pixels to read
@@ -43,6 +48,7 @@ import Base from '../layouts/Base.astro';
   const output = document.querySelector<HTMLCanvasElement>('[data-output]')!;
   const outputCtx = output.getContext('2d')!;
   const fileInput = document.querySelector<HTMLInputElement>('[data-file]')!;
+  const pieceSelect = document.querySelector<HTMLSelectElement>('[data-piece]')!;
   let frameId = 0;
 
   function drawAscii(lines: string[], width: number, height: number) {
@@ -66,61 +72,60 @@ import Base from '../layouts/Base.astro';
     });
   }
 
-  function render(img: HTMLImageElement) {
+  function render(img: HTMLImageElement, frames: number, fps: number) {
     // 0. Cancel the previous frame's animation
     cancelAnimationFrame(frameId); // stop the previous image's loop
 
     // 1. Setup canvas size and rows
-    const scale = Math.min(1, MAX_WIDTH / img.naturalWidth);
-    canvas.width = Math.round(img.naturalWidth * scale);
-    canvas.height = Math.round(img.naturalHeight * scale);
+    const frameWidth = img.naturalWidth / frames;
+    const frameHeight = img.naturalHeight;
+    const scale = MAX_WIDTH / frameWidth;
+    canvas.width = Math.round(frameWidth * scale);
+    canvas.height = Math.round(frameHeight * scale);
 
     // 2. Characters are about twice as tall as they are wide, so the picture
     //    needs about half as many rows as columns to keep its shape.
     const rows = Math.round(COLS * (canvas.height / canvas.width) * 0.5);
 
+    let lastIndex = -1; // Track the last frame index so we don't constantly redraw
     function frame(time: number) {
       // 4. Call the next frame in the animation
       frameId = requestAnimationFrame(frame);
 
       // 5. Draw the current image on the canvas
-      ctx.fillStyle = '#fff';
+      const index = Math.floor(time / (1000 / fps)) % frames;
+      if (index === lastIndex) return; // same picture as last time: nothing to redo
+      lastIndex = index;
+      ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Move and tilt the shark
-      ctx.save();
-
-      const x = Math.sin(time / 1000) * 40;
-      const y = Math.cos(time / 1000) * 40;
-      ctx.translate(0.5 * canvas.width + x, 0.5 * canvas.height);
-      ctx.rotate((x + y) / 600);
-      ctx.translate(-0.5 * canvas.width, -0.5 * canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      ctx.restore();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        img,
+        index * frameWidth,
+        0,
+        frameWidth,
+        frameHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
 
       // 6. Read every pixel back.
-      const start = performance.now();
       const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
       // 7. Convert image to Ascii and draw on the output canvas
       const lines = toAscii(image, COLS, rows);
-      const mid = performance.now();
-      if (Math.floor(time / 1000) !== Math.floor((time - 16) / 1000))
-        console.log('converting: ', (mid - start).toFixed(1), 'ms');
       drawAscii(lines, canvas.width, canvas.height);
-      const end = performance.now() - mid;
-      if (Math.floor(time / 1000) !== Math.floor((time - 16) / 1000))
-        console.log('drawing: ', end.toFixed(1), 'ms');
     }
 
     // 3. Start the animation
     frameId = requestAnimationFrame(frame);
   }
 
-  function load(src: string) {
+  function load(src: string, frames = 1, fps = 1) {
     const img = new Image();
-    img.onload = () => render(img);
+    img.onload = () => render(img, frames, fps);
     img.src = src;
   }
 
@@ -129,9 +134,28 @@ import Base from '../layouts/Base.astro';
     if (file) load(URL.createObjectURL(file));
   });
 
-  // Test image: a disc, a fan of thin lines and a triangle. Swap back to
-  // stand-in.svg for the shark.
-  load(`${import.meta.env.BASE_URL.replace(/\/$/, '')}/art/test-pattern.svg`);
+  // The site's base path (e.g. '' or '/portfolio'), without a trailing slash.
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  // Load one piece from the art list. Still images have no frames/fps, so
+  // load()'s defaults (1 frame, 1 fps) are used for them.
+  function loadPiece(piece: (typeof art)[number]) {
+    load(base + piece.src, piece.frames, piece.fps);
+  }
+
+  // One dropdown option per piece. The value is the piece's position in the
+  // list, so the change handler can find it again.
+  art.forEach((piece, i) => {
+    pieceSelect.add(new Option(piece.title, String(i)));
+  });
+
+  // Load whichever piece is picked.
+  pieceSelect.addEventListener('change', () => {
+    loadPiece(art[Number(pieceSelect.value)]);
+  });
+
+  // Start with the first piece in the list.
+  loadPiece(art[0]);
 </script>
 
 <style>
