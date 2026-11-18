@@ -135,7 +135,6 @@ export const art: ArtPiece[] = [
     title: 'Bust Study',
     src: '/art/1_31_25.jpg',
     caption: 'Pencil, 2025',
-    invert: true,
     featured: false,
   },
   {
