@@ -1,16 +1,21 @@
 ---
-// A framed viewer for your featured art. Each piece can be shown three ways:
-// the original, re-drawn as text characters, or re-drawn as pixels.
-// The pieces themselves stay still; the motion is the transformation between modes.
+// A framed viewer for your featured art. Each piece can be shown two ways:
+// the original, or re-drawn as text characters. The frame is a fixed square,
+// and the controls sit inside it.
 //
-// The ASCII mode is a simple brightness-to-character renderer. It's the baseline
-// to replace with your own renderer once you've worked through Alex Harri's article.
+// The ASCII mode uses your renderer from src/lib (toAscii): the same shape
+// matching and contrast enhancement as the lab page.
 import { art } from '../data/site';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pieces = art
   .filter((p) => p.featured)
-  .map((p) => ({ title: p.title, caption: p.caption ?? '', src: `${base}${p.src}` }));
+  .map((p) => ({
+    title: p.title,
+    caption: p.caption ?? '',
+    src: `${base}${p.src}`,
+    invert: p.invert ?? false,
+  }));
 const first = pieces[0];
 ---
 
@@ -18,9 +23,28 @@ const first = pieces[0];
   <figure class="viewer" data-viewer data-pieces={JSON.stringify(pieces)}>
     <div class="viewer__frame">
       <canvas role="img" aria-label={`${first.title}, shown as text characters`} />
-    </div>
 
-    <div class="viewer__controls">
+      {pieces.length > 1 && (
+        <>
+          <button
+            type="button"
+            class="viewer__step viewer__step--prev"
+            data-step="-1"
+            aria-label="Previous piece"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            class="viewer__step viewer__step--next"
+            data-step="1"
+            aria-label="Next piece"
+          >
+            ›
+          </button>
+        </>
+      )}
+
       <div class="viewer__modes" role="group" aria-label="Show this piece as">
         <button type="button" data-mode="original" aria-pressed="false">
           Original
@@ -28,20 +52,7 @@ const first = pieces[0];
         <button type="button" data-mode="ascii" aria-pressed="true">
           ASCII
         </button>
-        <button type="button" data-mode="pixel" aria-pressed="false">
-          Pixel
-        </button>
       </div>
-      {pieces.length > 1 && (
-        <div class="viewer__nav">
-          <button type="button" data-step="-1" aria-label="Previous piece">
-            ‹
-          </button>
-          <button type="button" data-step="1" aria-label="Next piece">
-            ›
-          </button>
-        </div>
-      )}
     </div>
 
     <figcaption class="viewer__caption">
@@ -49,30 +60,28 @@ const first = pieces[0];
       <span class="viewer__muted" data-caption>
         {first.caption}
       </span>
-      <a href="#projects" data-open-tab="personal">
-        See all my art
-      </a>
     </figcaption>
   </figure>
 )}
 
 <script>
-  type Mode = 'original' | 'ascii' | 'pixel';
-  type Piece = { title: string; caption: string; src: string };
+  import { toAscii, CHARS } from '../lib/index.ts';
+  import { getFont, getBaselineOffset } from '../lib/characters.ts';
 
-  const RAMP = ' .:-=+*#%@'; // lightest to densest; a space is never drawn
-  const ASCII_COLS = 64;
-  const PIXEL_COLS = 48;
+  type Mode = 'original' | 'ascii';
+  type Piece = { title: string; caption: string; src: string; invert: boolean };
+
+  const ASCII_COLS = 64; // characters per row
   const REVEAL_MS = 700; // latest a character starts settling
   const SETTLE_MS = 350; // how long one character takes to settle
-  const PIXEL_MS = 450; // blocks shrink from coarse to final over this long
   const FADE_MS = 300;
   const MODE_LABEL = {
     original: 'shown as the original',
     ascii: 'shown as text characters',
-    pixel: 'shown as pixels',
   };
 
+  // Turns a number into a fixed, random-looking value from 0 to 1. The same
+  // input always gives the same output, so each cell keeps its own delay.
   function hash(i: number, seed = 0) {
     let h = Math.imul(i ^ seed, 2654435761);
     h ^= h >>> 15;
@@ -99,10 +108,14 @@ const first = pieces[0];
     let mode: Mode = 'ascii';
     let index = 0;
     let img: HTMLImageElement | null = null;
-    let size = 0;
+    let width = 0; // canvas size in CSS pixels
+    let height = 0;
     let dpr = 1;
     let changedAt = -Infinity;
     let frame = 0;
+    // The piece converted to text. Converting is the slow part, so it's done once
+    // per piece and size, not every animation frame. null means "convert again".
+    let lines: string[] | null = null;
 
     modeButtons.forEach((b) =>
       b.addEventListener('click', () => {
@@ -133,15 +146,21 @@ const first = pieces[0];
         images.set(piece.src, im);
       }
       if (im.complete && im.naturalWidth) {
-        img = im;
-        restart();
+        use(im);
       } else {
         im.onload = () => {
           if (pieces[index].src !== piece.src) return;
-          img = im!;
-          restart();
+          use(im!);
         };
       }
+    }
+
+    // Switch to a newly loaded piece. The frame keeps its size; the piece is
+    // fitted inside it.
+    function use(im: HTMLImageElement) {
+      img = im;
+      lines = null;
+      restart();
     }
 
     function restart() {
@@ -151,9 +170,12 @@ const first = pieces[0];
     }
 
     function resize() {
-      size = canvas.clientWidth;
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
       dpr = Math.min(devicePixelRatio || 1, 2);
-      canvas.width = canvas.height = Math.round(size * dpr);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      lines = null;
       request();
     }
 
@@ -169,86 +191,62 @@ const first = pieces[0];
       return [(w - dw) / 2, (h - dh) / 2, dw, dh] as const;
     }
 
-    // Draw the image small and read it back: one brightness value per cell,
-    // where dark ink is 1 and white paper is 0.
-    function inkGrid(cols: number, rows: number, cellW: number, cellH: number) {
-      sample.width = cols;
-      sample.height = rows;
-      sctx.fillStyle = '#fff';
-      sctx.fillRect(0, 0, cols, rows);
-      sctx.drawImage(img!, ...fit(cols, rows, cellW, cellH));
-      const px = sctx.getImageData(0, 0, cols, rows).data;
-      const ink = new Float32Array(cols * rows);
-      for (let i = 0; i < ink.length; i++) {
-        const lum = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
-        ink[i] = Math.min(1, Math.max(0, (1 - lum - 0.08) / 0.92));
-      }
-      return ink;
+    // Run the piece through your renderer. The sample canvas is the frame's size
+    // in CSS pixels, so each character cell is the size it's drawn at. It's filled
+    // with the piece's background first (white paper when inverted, black otherwise),
+    // so transparent areas and the space around the piece read as empty.
+    function convert() {
+      const invert = pieces[index].invert;
+      const rows = Math.round(ASCII_COLS * (height / width) * 0.5);
+      sample.width = Math.round(width);
+      sample.height = Math.round(height);
+      sctx.fillStyle = invert ? '#fff' : '#000';
+      sctx.fillRect(0, 0, sample.width, sample.height);
+      sctx.drawImage(img!, ...fit(sample.width, sample.height));
+      const image = sctx.getImageData(0, 0, sample.width, sample.height);
+      return toAscii(image, ASCII_COLS, rows, invert);
     }
 
     function draw(now: number) {
       frame = 0;
-      if (!img || !size) return;
+      if (!img || !width || !height) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, width, height);
       const t = now - changedAt;
       let animating = false;
 
       if (mode === 'original') {
         const p = Math.min(1, t / FADE_MS);
         ctx.globalAlpha = p;
-        ctx.drawImage(img, ...fit(size, size));
-        ctx.globalAlpha = 1;
-        animating = p < 1;
-      } else if (mode === 'pixel') {
-        // Blocks start coarse and sharpen to the final size.
-        const p = Math.min(1, t / PIXEL_MS);
-        const finalCols = PIXEL_COLS;
-        const cols = Math.max(6, Math.round(finalCols * (0.2 + 0.8 * p * p)));
-        const block = size / cols;
-        const ink = inkGrid(cols, cols, 1, 1);
-        ctx.fillStyle = '#f2f2f2';
-        for (let r = 0; r < cols; r++) {
-          for (let c = 0; c < cols; c++) {
-            const level = Math.round(ink[r * cols + c] * 3) / 3; // four tones, like a limited palette
-            if (level <= 0) continue;
-            ctx.globalAlpha = level;
-            ctx.fillRect(
-              Math.floor(c * block),
-              Math.floor(r * block),
-              Math.ceil(block),
-              Math.ceil(block),
-            );
-          }
-        }
+        ctx.drawImage(img, ...fit(width, height));
         ctx.globalAlpha = 1;
         animating = p < 1;
       } else {
-        // Characters are about 1.75 times taller than wide, so there are fewer rows than columns.
-        const cw = size / ASCII_COLS;
-        const ch = cw * 1.75;
-        const rows = Math.floor(size / ch);
-        const ink = inkGrid(ASCII_COLS, rows, cw, ch);
-        const top = (size - rows * ch) / 2;
+        if (!lines) lines = convert();
+        const cw = width / ASCII_COLS;
+        const ch = height / lines.length;
         const tick = Math.floor(now / 120);
-        ctx.font = `${Math.round(cw * 1.6)}px ui-monospace, Menlo, Consolas, monospace`;
-        ctx.textBaseline = 'top';
+        ctx.font = getFont(cw);
+        ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#f2f2f2';
-        for (let r = 0; r < rows; r++) {
+        const baseline = getBaselineOffset(ctx, ch);
+        for (let r = 0; r < lines.length; r++) {
           for (let c = 0; c < ASCII_COLS; c++) {
+            let char = lines[r][c];
+            if (char === ' ') continue;
             const i = r * ASCII_COLS + c;
-            let b = ink[i];
-            let glyph = Math.round(b * (RAMP.length - 1));
-            // Scramble, then settle into place.
+            // Scramble, then settle into place: each cell starts at its own
+            // time, shows random characters that change every 120 ms while
+            // fading in, then shows its real character.
             const p = (t - hash(i, 7) * REVEAL_MS) / SETTLE_MS;
-            if (b > 0.05 && p < 1) {
-              glyph = 1 + Math.floor(hash(i, tick) * (RAMP.length - 1));
-              b *= Math.max(0.25, p);
+            if (p < 1) {
+              char = CHARS[1 + Math.floor(hash(i, tick) * (CHARS.length - 1))]; // never a space
+              ctx.globalAlpha = Math.max(0.25, p);
               animating = true;
+            } else {
+              ctx.globalAlpha = 1;
             }
-            if (glyph === 0 || b < 0.02) continue;
-            ctx.globalAlpha = 0.3 + 0.7 * b;
-            ctx.fillText(RAMP[glyph], c * cw, top + r * ch);
+            ctx.fillText(char, c * cw, r * ch + baseline);
           }
         }
         ctx.globalAlpha = 1;
@@ -268,6 +266,9 @@ const first = pieces[0];
   }
 
   .viewer__frame {
+    position: relative;
+    /* One fixed shape for every piece, so the page doesn't move when you switch.
+       Each piece is fitted inside without cropping; the spare space stays black. */
     aspect-ratio: 1;
     border: 1px solid #3a3a3a;
     border-radius: var(--radius);
@@ -280,26 +281,21 @@ const first = pieces[0];
     height: 100%;
   }
 
-  .viewer__controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 0.75rem;
-  }
-
-  .viewer__modes,
-  .viewer__nav {
+  /* Controls float over the art on a dark backing, so they stay readable on
+     both black ASCII and white originals. */
+  .viewer__modes {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    translate: -50% 0;
     display: inline-flex;
+    padding: 3px;
     border: 1px solid #3a3a3a;
-    border-radius: var(--radius);
-    overflow: hidden;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.78);
   }
 
   .viewer button {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0 0.9rem;
     border: 0;
     background: none;
     color: var(--paper-muted);
@@ -308,22 +304,42 @@ const first = pieces[0];
     cursor: pointer;
   }
 
-  .viewer button + button {
-    border-left: 1px solid #3a3a3a;
+  .viewer__modes button {
+    min-height: 38px;
+    padding: 0 0.95rem;
+    border-radius: 999px;
   }
 
   .viewer button:hover {
     color: var(--paper);
   }
 
-  .viewer button[aria-pressed='true'] {
+  .viewer__modes button[aria-pressed='true'] {
     background: var(--paper);
     color: var(--ink);
   }
 
-  .viewer__nav button {
-    font-size: var(--step-2);
-    padding: 0 0.6rem;
+  /* .viewer .viewer__step outranks the general .viewer button rule above. */
+  .viewer .viewer__step {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0 0 3px;
+    border: 1px solid #3a3a3a;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.78);
+    font-size: var(--step-3);
+    line-height: 1;
+  }
+  .viewer__step--prev {
+    left: 10px;
+  }
+  .viewer__step--next {
+    right: 10px;
   }
 
   .viewer__caption {
@@ -336,9 +352,5 @@ const first = pieces[0];
 
   .viewer__muted {
     color: var(--paper-muted);
-  }
-
-  .viewer__caption a {
-    margin-left: auto;
   }
 </style>

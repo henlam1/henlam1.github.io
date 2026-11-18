@@ -1,0 +1,79 @@
+---
+// The top bar, shared by every page. Section links point at the homepage
+// (e.g. /#about), so they also work from the gallery.
+import { profile } from '../data/site';
+
+interface Props {
+  current?: 'home' | 'gallery';
+}
+
+const { current = 'home' } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const home = `${base}/`;
+const resumeHref = profile.resume ? `${base}${profile.resume}` : '';
+---
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <a href={`${home}#top`} class="nav__name">
+      {profile.name}
+    </a>
+    <nav aria-label="Site">
+      <a href={`${home}#about`}>About</a>
+      <a href={`${home}#projects`}>Projects</a>
+      <a href={`${home}#experience`}>Experience</a>
+      <a href={`${base}/gallery/`} aria-current={current === 'gallery' ? 'page' : undefined}>
+        Gallery
+      </a>
+      <a href={`${home}#contact`}>Contact</a>
+      {resumeHref && (
+        <a href={resumeHref} target="_blank">
+          Resume<span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      )}
+    </nav>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: relative;
+    z-index: 10;
+  }
+  .nav__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 72px;
+  }
+  .nav__name {
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 clamp(0.25rem, 2vw, 1.25rem);
+    font-size: var(--step-0);
+  }
+  /* Padding keeps each link a comfortable 44px tap target. */
+  .nav nav a {
+    padding: 0.7rem 0.4rem;
+    text-decoration: none;
+  }
+  .nav nav a:hover,
+  .nav nav a[aria-current='page'] {
+    text-decoration: underline;
+  }
+  @media (max-width: 640px) {
+    .nav__name {
+      display: none;
+    }
+    .nav__inner {
+      justify-content: center;
+    }
+  }
+</style>

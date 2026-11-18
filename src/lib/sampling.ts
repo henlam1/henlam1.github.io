@@ -53,6 +53,8 @@ export function getRegions(cellWidth: number, cellHeight: number) {
  * @param cellHeight the height of a cell in pixels
  * @param regions the six regions of a cell to sample for lightness, each with a center and a radius
  * @param offsets the sample points to read in each circle, as distances from the circle's center (from getVogelOffsets)
+ * @param invert false: bright parts count (light art on a dark background). true: dark parts count
+ *               (dark art on light paper). Either way, the background reads as 0.
  * @returns the vector for the cell, with six values
  */
 export function getCellVector(
@@ -63,6 +65,7 @@ export function getCellVector(
   cellHeight: number,
   regions: { x: number; y: number; radius: number }[],
   offsets: { dx: number; dy: number }[],
+  invert = false,
 ) {
   // The cell's top-left corner in the full image
   const cellX = col * cellWidth;
@@ -92,10 +95,12 @@ export function getCellVector(
       y = Math.max(0, Math.min(y, image.height - 1));
 
       // Increment total
-      total += getLightness(image, x, y);
+      // Add this point's value: its lightness, or its darkness (1 - lightness) when inverted.
+      const lightness = getLightness(image, x, y);
+      total += invert ? 1 - lightness : lightness;
     }
 
-    // The average lightness over the sample points, from 0 (black) to 1 (white).
+    // The average value over the sample points, from 0 (background) to 1 (full).
     return total / offsets.length;
   });
 }

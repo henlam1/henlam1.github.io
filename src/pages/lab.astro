@@ -72,7 +72,16 @@ import Base from '../layouts/Base.astro';
     });
   }
 
-  function render(img: HTMLImageElement, frames: number, fps: number) {
+  function showAscii(rows: number, invert: boolean) {
+    // 6. Read every pixel back.
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // 7. Convert image to Ascii and draw on the output canvas
+    const lines = toAscii(image, COLS, rows, invert);
+    drawAscii(lines, canvas.width, canvas.height);
+  }
+
+  function render(img: HTMLImageElement, frames: number, fps: number, invert: boolean) {
     // 0. Cancel the previous frame's animation
     cancelAnimationFrame(frameId); // stop the previous image's loop
 
@@ -96,7 +105,9 @@ import Base from '../layouts/Base.astro';
       const index = Math.floor(time / (1000 / fps)) % frames;
       if (index === lastIndex) return; // same picture as last time: nothing to redo
       lastIndex = index;
-      ctx.fillStyle = '#000';
+      // Fill with the background colour first, so transparent areas read as empty (0):
+      // white paper when inverted, black otherwise.
+      ctx.fillStyle = invert ? '#fff' : '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(
@@ -111,21 +122,16 @@ import Base from '../layouts/Base.astro';
         canvas.height,
       );
 
-      // 6. Read every pixel back.
-      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      // 7. Convert image to Ascii and draw on the output canvas
-      const lines = toAscii(image, COLS, rows);
-      drawAscii(lines, canvas.width, canvas.height);
+      showAscii(rows, invert);
     }
 
     // 3. Start the animation
     frameId = requestAnimationFrame(frame);
   }
 
-  function load(src: string, frames = 1, fps = 1) {
+  function load(src: string, frames = 1, fps = 1, invert = false) {
     const img = new Image();
-    img.onload = () => render(img, frames, fps);
+    img.onload = () => render(img, frames, fps, invert);
     img.src = src;
   }
 
@@ -137,10 +143,10 @@ import Base from '../layouts/Base.astro';
   // The site's base path (e.g. '' or '/portfolio'), without a trailing slash.
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-  // Load one piece from the art list. Still images have no frames/fps, so
-  // load()'s defaults (1 frame, 1 fps) are used for them.
+  // Load one piece from the art list. Still images have no frames/fps, and most
+  // pieces have no invert, so load()'s defaults (1 frame, 1 fps, not inverted) apply.
   function loadPiece(piece: (typeof art)[number]) {
-    load(base + piece.src, piece.frames, piece.fps);
+    load(base + piece.src, piece.frames, piece.fps, piece.invert);
   }
 
   // One dropdown option per piece. The value is the piece's position in the

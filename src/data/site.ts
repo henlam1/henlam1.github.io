@@ -106,22 +106,19 @@ export type ArtPiece = {
   src: string; // image in public/art/, e.g. '/art/swan.jpg'
   frames?: number; // sprite sheets only: how many frames, side by side in one row
   fps?: number; // sprite sheets only: frames per second
+  // Dark art on light paper (pencil, ink on white). The ASCII then draws the dark lines as
+  // characters instead of filling the paper with them. Leave out for art on dark or clear backgrounds.
+  invert?: boolean;
   caption?: string; // e.g. 'Pen and ink, 2025'
   credit?: string; // for studies, e.g. 'Study after [artist name]'
-  // Show this piece in the homepage viewer. Pick 3–5 that look good as characters and pixels:
-  // high-contrast ink drawings and pixel sprites convert better than photos.
+  // Show this piece in the homepage viewer. Pick 2–4 that look good as characters in /lab.
+  // Sprite sheets can't be featured yet: the viewer doesn't play them.
   featured?: boolean;
 };
 
-// Everything here appears in the Personal tab under Projects; featured pieces also appear
+// Everything here appears on the Gallery page; featured pieces also appear
 // in the homepage viewer. Drawings, digital pieces, pixel art, bakes: anything you've made.
 export const art: ArtPiece[] = [
-  {
-    title: 'Shark (stand-in)',
-    src: '/art/stand-in.svg',
-    caption: 'Placeholder until you add your own pieces',
-    featured: true,
-  },
   {
     title: 'Sleeping Fox',
     src: '/art/fox-transparent.png',
@@ -140,13 +137,14 @@ export const art: ArtPiece[] = [
     title: 'Bust Study',
     src: '/art/1_31_25.jpg',
     caption: 'Pencil, 2025',
+    invert: true,
     featured: false,
   },
   {
     title: 'Flower',
     src: '/art/Illustration17.png',
     caption: 'Digital Art (CSP), 2026',
-    featured: false,
+    featured: true,
   },
   {
     title: 'Portrait',

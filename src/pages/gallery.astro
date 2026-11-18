@@ -1,0 +1,135 @@
+---
+// Every piece in the `art` list from site.ts, in a masonry layout: each image keeps
+// its own shape, and the columns fill top to bottom like a Pinterest board.
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import { profile, art } from '../data/site';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<Base title={`Gallery · ${profile.name}`} description={`Art by ${profile.name}.`}>
+  <Nav current="gallery" />
+
+  <main class="wrap gallery-page">
+    <h1>Gallery</h1>
+
+    <ul class="masonry">
+      {art.map((piece) => (
+        <li>
+          <figure>
+            {piece.frames && piece.frames > 1 ? (
+              // Sprite sheet: the strip is `frames` times wider than its box, so the
+              // box is exactly one frame tall. CSS slides the strip one frame per step.
+              <div
+                class="sprite"
+                style={`--frames: ${piece.frames}; --duration: ${piece.frames / (piece.fps ?? 10)}s`}
+              >
+                <img src={`${base}${piece.src}`} alt={piece.title} loading="lazy" />
+              </div>
+            ) : (
+              <img src={`${base}${piece.src}`} alt={piece.title} loading="lazy" />
+            )}
+            <figcaption>
+              <span class="masonry__title">{piece.title}</span>
+              {piece.caption && <span class="masonry__meta">{piece.caption}</span>}
+              {piece.credit && <span class="masonry__meta">{piece.credit}</span>}
+            </figcaption>
+          </figure>
+        </li>
+      ))}
+    </ul>
+  </main>
+
+  <footer class="footer wrap">
+    <p>
+      {profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.
+    </p>
+    <a href={`${base}/`}>Back to home</a>
+  </footer>
+</Base>
+
+<style>
+  .gallery-page {
+    padding-top: clamp(24px, 5vw, 64px);
+  }
+  .gallery-page h1 {
+    margin-bottom: clamp(24px, 4vw, 40px);
+    font-size: var(--step-3);
+  }
+
+  /* CSS columns give the masonry layout: items flow down one column, then the next. */
+  .masonry {
+    columns: 260px;
+    column-gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .masonry li {
+    max-width: none;
+    margin-bottom: 1.75rem;
+    break-inside: avoid; /* keep each image and its caption in one column */
+  }
+  .masonry figure {
+    margin: 0;
+  }
+  .masonry img {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+  }
+  .masonry figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.6rem;
+    margin-top: 0.5rem;
+    font-size: var(--step-0);
+  }
+  .masonry__title {
+    font-weight: 700;
+  }
+  .masonry__meta {
+    color: var(--paper-muted);
+  }
+
+  .sprite {
+    overflow: hidden;
+    border-radius: var(--radius);
+  }
+  .sprite img {
+    width: calc(var(--frames) * 100%);
+    max-width: none;
+    border-radius: 0;
+    image-rendering: pixelated;
+    animation: play var(--duration) steps(var(--frames)) infinite;
+  }
+  /* Slide the whole strip left, stopping on each frame. steps() never shows the
+     end position, so the last frame shown is the last real one. */
+  @keyframes play {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem 2rem;
+    margin-top: clamp(56px, 8vw, 96px);
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+    border-top: 1px solid #3a3a3a;
+    font-size: var(--step-0);
+  }
+  .footer p {
+    margin: 0;
+    color: var(--paper-muted);
+  }
+  .footer a {
+    display: inline-block;
+    padding: 0.7rem 0;
+  }
+</style>

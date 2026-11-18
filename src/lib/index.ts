@@ -34,9 +34,11 @@ let cachedNormalizedVectors: { char: string; vector: number[] }[] | null = null;
  *              [r, g, b, a, r, g, b, a, ...], row by row, from the top left.
  * @param cols  how many characters wide the result should be
  * @param rows  how many characters tall
+ * @param invert true for dark art on light paper, so the dark parts become characters
+ *               instead of the paper. The default (false) suits light art on a dark background.
  * @returns     one string per row, each `cols` characters long
  */
-export function toAscii(image: ImageData, cols: number, rows: number): string[] {
+export function toAscii(image: ImageData, cols: number, rows: number, invert = false): string[] {
   const cellWidth = image.width / cols; // how many pixels across each character covers
   const cellHeight = image.height / rows; // how many pixels down each character covers
   const regions = getRegions(cellWidth, cellHeight); // circular regions to sample points from
@@ -60,7 +62,16 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
     let line = '';
     for (let col = 0; col < cols; col++) {
       // Version 3: shape matching with directional and global contrast enhancement
-      const cellVector = getCellVector(image, col, row, cellWidth, cellHeight, regions, offsets);
+      const cellVector = getCellVector(
+        image,
+        col,
+        row,
+        cellWidth,
+        cellHeight,
+        regions,
+        offsets,
+        invert,
+      );
       const externalVector = getCellVector(
         image,
         col,
@@ -69,6 +80,7 @@ export function toAscii(image: ImageData, cols: number, rows: number): string[] 
         cellHeight,
         externalRegions,
         offsets,
+        invert,
       );
       const directionalVector = enhanceDirectional(cellVector, externalVector, 3);
       const contrastEnhancedVector = enhanceContrast(directionalVector, 3);
