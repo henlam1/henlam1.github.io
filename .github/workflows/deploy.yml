@@ -1,10 +1,9 @@
 name: Deploy to GitHub Pages
 
-# Manual for now, so pushes don't fail before GitHub Pages is turned on.
-# Once Pages is set to "GitHub Actions" in the repo settings, add back:
-#   push:
-#     branches: [main]
+# Runs on every push to main, and can also be started by hand from the Actions tab.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
