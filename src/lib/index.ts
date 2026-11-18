@@ -36,9 +36,18 @@ let cachedNormalizedVectors: { char: string; vector: number[] }[] | null = null;
  * @param rows  how many characters tall
  * @param invert true for dark art on light paper, so the dark parts become characters
  *               instead of the paper. The default (false) suits light art on a dark background.
+ * @param directionalExponent how strongly edges between cells are sharpened (1 = off)
+ * @param globalExponent how strongly contrast inside each cell is sharpened (1 = off)
  * @returns     one string per row, each `cols` characters long
  */
-export function toAscii(image: ImageData, cols: number, rows: number, invert = false): string[] {
+export function toAscii(
+  image: ImageData,
+  cols: number,
+  rows: number,
+  invert = false,
+  directionalExponent = 3,
+  globalExponent = 3,
+): string[] {
   const cellWidth = image.width / cols; // how many pixels across each character covers
   const cellHeight = image.height / rows; // how many pixels down each character covers
   const regions = getRegions(cellWidth, cellHeight); // circular regions to sample points from
@@ -82,8 +91,8 @@ export function toAscii(image: ImageData, cols: number, rows: number, invert = f
         offsets,
         invert,
       );
-      const directionalVector = enhanceDirectional(cellVector, externalVector, 3);
-      const contrastEnhancedVector = enhanceContrast(directionalVector, 3);
+      const directionalVector = enhanceDirectional(cellVector, externalVector, directionalExponent);
+      const contrastEnhancedVector = enhanceContrast(directionalVector, globalExponent);
       line += getNearestCharacter(contrastEnhancedVector, cachedNormalizedVectors);
     }
     lines.push(line);

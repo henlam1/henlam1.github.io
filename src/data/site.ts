@@ -65,6 +65,17 @@ export const projects: Project[] = [
     year: '2024–25',
   },
   {
+    title: 'ASCII renderer',
+    description:
+      'Turns images and pixel animations into ASCII in real time by matching each cell’s shape against 95 characters, not just its brightness, following Alex Harri’s technique. I profiled it and cut conversion from 13.5 ms to 6.5 ms per frame, switched to Vogel-spiral sampling so 16 sample circles per cell stay real-time, and added directional contrast to sharpen edges between cells.',
+    tech: ['TypeScript', 'Canvas 2D'],
+    live: '/lab/',
+    liveLabel: 'Try it',
+    repo: 'https://github.com/henlam1/henlam1.github.io/tree/main/src/lib',
+    repoLabel: 'Code',
+    year: '2026',
+  },
+  {
     title: 'Wait or Switch',
     description:
       'Tells NYC commuters whether to wait for the N train or switch to the D, using live MTA feeds and a database of past arrival times.',

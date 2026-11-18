@@ -1,38 +1,97 @@
 ---
-// A scratch page for experimenting with ASCII rendering.
-// Open http://localhost:4321/lab while `npm run dev` is running.
-// It isn't linked from the site, but it will be published with it:
-// delete this file before going live, or keep it as a "lab" page on purpose.
+// The public ASCII renderer page, at /lab/. Visitors pick one of your pieces or
+// upload their own image, and watch the renderer in src/lib convert it, with a few
+// settings to play with. While developing, it's also the quickest place to try
+// renderer changes: run `npm run dev` and open /lab/.
 import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import { profile } from '../data/site';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const codeUrl = 'https://github.com/henlam1/henlam1.github.io/tree/main/src/lib';
 ---
 
-<Base title="ASCII lab">
-  <main class="lab">
-    <h1>ASCII lab</h1>
-    <p class="lab__hint">
-      Edit <code>src/lib/index.ts</code> and save. This page reloads with your changes.
+<Base
+  title={`ASCII renderer · ${profile.name}`}
+  description="Turn an image into ASCII characters, matched by shape and not just brightness."
+>
+  <Nav />
+
+  <main class="wrap renderer">
+    <h1>ASCII renderer</h1>
+    <p class="renderer__intro">
+      Most ASCII art picks each character by brightness alone. This renderer samples every character
+      cell in six small circles and draws it with whichever of the 95 printable characters has the
+      most similar shape, so edges and curves come through, not just light and dark.
+    </p>
+    <p class="renderer__links">
+      <a href="https://alexharri.com/blog/ascii-rendering" target="_blank" rel="noopener">
+        Based on Alex Harri’s article<span class="sr-only"> (opens in a new tab)</span>
+      </a>
+      <a href={codeUrl} target="_blank" rel="noopener">
+        Code on GitHub<span class="sr-only"> (opens in a new tab)</span>
+      </a>
     </p>
 
-    <label class="lab__pick">
-      Try your own image:
-      <input type="file" accept="image/*" data-file />
-    </label>
-    <label class="lab__pick">
-      Piece
-      <select data-piece></select>
-    </label>
+    <div class="controls">
+      <label class="field">
+        <span class="field__label">Piece</span>
+        <select class="select" data-piece></select>
+      </label>
 
-    <div class="lab__panes">
+      <label class="btn btn--ghost btn--small upload">
+        <input class="upload__input" type="file" accept="image/*" data-file />
+        Upload your own image
+      </label>
+
+      <label class="check">
+        <input type="checkbox" data-invert />
+        Invert
+      </label>
+    </div>
+
+    <div class="controls controls--sliders">
+      <label class="field">
+        <span class="field__label">
+          Characters across <output data-output-for="cols">80</output>
+        </span>
+        <input type="range" min="40" max="140" step="10" value="80" data-setting="cols" />
+      </label>
+      <label class="field">
+        <span class="field__label">
+          Edge sharpening <output data-output-for="directional">3</output>
+        </span>
+        <input type="range" min="1" max="6" step="0.5" value="3" data-setting="directional" />
+      </label>
+      <label class="field">
+        <span class="field__label">
+          Contrast <output data-output-for="global">3</output>
+        </span>
+        <input type="range" min="1" max="6" step="0.5" value="3" data-setting="global" />
+      </label>
+      <button type="button" class="btn btn--ghost btn--small" data-reset>
+        Reset to defaults
+      </button>
+    </div>
+
+    <div class="panes">
       <figure>
         <figcaption>Original</figcaption>
         <canvas data-source></canvas>
       </figure>
       <figure>
-        <figcaption>Your ASCII</figcaption>
-        <canvas data-output></canvas>
+        <figcaption>ASCII</figcaption>
+        <canvas data-output role="img" aria-label="The image drawn in ASCII characters"></canvas>
       </figure>
     </div>
   </main>
+
+  <footer class="footer wrap">
+    <p>
+      {profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.
+    </p>
+    <a href={`${base}/`}>Back to home</a>
+  </footer>
 </Base>
 
 <script>
@@ -40,8 +99,7 @@ import Base from '../layouts/Base.astro';
   import { getFont, getBaselineOffset } from '../lib/characters.ts';
   import { art } from '../data/site';
 
-  const COLS = 80; // characters per row; try changing this
-  const MAX_WIDTH = 800; // big photos are scaled down so there are fewer pixels to read
+  const MAX_WIDTH = 800; // every image is scaled to this width, so big photos stay quick
 
   const canvas = document.querySelector<HTMLCanvasElement>('[data-source]')!;
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -49,7 +107,16 @@ import Base from '../layouts/Base.astro';
   const outputCtx = output.getContext('2d')!;
   const fileInput = document.querySelector<HTMLInputElement>('[data-file]')!;
   const pieceSelect = document.querySelector<HTMLSelectElement>('[data-piece]')!;
+  const invertBox = document.querySelector<HTMLInputElement>('[data-invert]')!;
   let frameId = 0;
+
+  // The settings visitors can change. Each slider writes to one of these, and
+  // "Reset to defaults" puts the sliders back to DEFAULTS.
+  const DEFAULTS = { cols: 80, directional: 3, global: 3 };
+  const settings = { ...DEFAULTS, invert: false };
+
+  // The image on screen now, so a settings change can convert it again.
+  let current: { img: HTMLImageElement; frames: number; fps: number } | null = null;
 
   function drawAscii(lines: string[], width: number, height: number) {
     // Same size as the original. Setting these also clears the canvas and
@@ -57,7 +124,7 @@ import Base from '../layouts/Base.astro';
     output.width = width;
     output.height = height;
 
-    const cellWidth = width / COLS;
+    const cellWidth = width / settings.cols;
     const cellHeight = height / lines.length;
 
     outputCtx.font = getFont(cellWidth);
@@ -72,44 +139,49 @@ import Base from '../layouts/Base.astro';
     });
   }
 
-  function showAscii(rows: number, invert: boolean) {
-    // 6. Read every pixel back.
+  function showAscii(rows: number) {
+    // Read every pixel back, convert, and draw the characters.
     const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    // 7. Convert image to Ascii and draw on the output canvas
-    const lines = toAscii(image, COLS, rows, invert);
+    const lines = toAscii(
+      image,
+      settings.cols,
+      rows,
+      settings.invert,
+      settings.directional,
+      settings.global,
+    );
     drawAscii(lines, canvas.width, canvas.height);
   }
 
-  function render(img: HTMLImageElement, frames: number, fps: number, invert: boolean) {
-    // 0. Cancel the previous frame's animation
-    cancelAnimationFrame(frameId); // stop the previous image's loop
+  function render(img: HTMLImageElement, frames: number, fps: number) {
+    // Stop the previous image's loop, and remember this one for settings changes.
+    cancelAnimationFrame(frameId);
+    current = { img, frames, fps };
 
-    // 1. Setup canvas size and rows
+    // Size the canvas from one frame (a still image is a one-frame sheet).
     const frameWidth = img.naturalWidth / frames;
     const frameHeight = img.naturalHeight;
     const scale = MAX_WIDTH / frameWidth;
     canvas.width = Math.round(frameWidth * scale);
     canvas.height = Math.round(frameHeight * scale);
 
-    // 2. Characters are about twice as tall as they are wide, so the picture
-    //    needs about half as many rows as columns to keep its shape.
-    const rows = Math.round(COLS * (canvas.height / canvas.width) * 0.5);
+    // Characters are about twice as tall as they are wide, so the picture
+    // needs about half as many rows as columns to keep its shape.
+    const rows = Math.round(settings.cols * (canvas.height / canvas.width) * 0.5);
 
-    let lastIndex = -1; // Track the last frame index so we don't constantly redraw
+    let lastIndex = -1; // the frame shown last, so an unchanged frame isn't converted again
     function frame(time: number) {
-      // 4. Call the next frame in the animation
       frameId = requestAnimationFrame(frame);
 
-      // 5. Draw the current image on the canvas
       const index = Math.floor(time / (1000 / fps)) % frames;
       if (index === lastIndex) return; // same picture as last time: nothing to redo
       lastIndex = index;
+
       // Fill with the background colour first, so transparent areas read as empty (0):
       // white paper when inverted, black otherwise.
-      ctx.fillStyle = invert ? '#fff' : '#000';
+      ctx.fillStyle = settings.invert ? '#fff' : '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = frames === 1; // keep sprite pixels sharp; smooth photos
       ctx.drawImage(
         img,
         index * frameWidth,
@@ -122,42 +194,94 @@ import Base from '../layouts/Base.astro';
         canvas.height,
       );
 
-      showAscii(rows, invert);
+      showAscii(rows);
     }
 
-    // 3. Start the animation
     frameId = requestAnimationFrame(frame);
   }
 
-  function load(src: string, frames = 1, fps = 1, invert = false) {
-    const img = new Image();
-    img.onload = () => render(img, frames, fps, invert);
-    img.src = src;
+  function rerender() {
+    if (current) render(current.img, current.frames, current.fps);
   }
 
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (file) load(URL.createObjectURL(file));
-  });
+  function load(src: string, frames = 1, fps = 1) {
+    const img = new Image();
+    img.onload = () => render(img, frames, fps);
+    img.src = src;
+  }
 
   // The site's base path (e.g. '' or '/portfolio'), without a trailing slash.
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-  // Load one piece from the art list. Still images have no frames/fps, and most
-  // pieces have no invert, so load()'s defaults (1 frame, 1 fps, not inverted) apply.
-  function loadPiece(piece: (typeof art)[number]) {
-    load(base + piece.src, piece.frames, piece.fps, piece.invert);
+  // The invert setting each source starts with: a piece's own, or off for uploads.
+  function defaultInvert() {
+    return pieceSelect.value === 'upload'
+      ? false
+      : (art[Number(pieceSelect.value)].invert ?? false);
   }
 
-  // One dropdown option per piece. The value is the piece's position in the
-  // list, so the change handler can find it again.
+  // Load one piece from the art list, with its own invert setting.
+  function loadPiece(piece: (typeof art)[number]) {
+    settings.invert = piece.invert ?? false;
+    invertBox.checked = settings.invert;
+    load(base + piece.src, piece.frames, piece.fps);
+  }
+
+  // One dropdown option per piece. The value is the piece's position in the list.
   art.forEach((piece, i) => {
     pieceSelect.add(new Option(piece.title, String(i)));
   });
 
-  // Load whichever piece is picked.
+  // An uploaded image stays on the visitor's device: it's read into the page and
+  // never sent anywhere. It gets its own "Your image" option in the dropdown, so the
+  // dropdown always shows what's on screen. Without it, the dropdown kept showing the
+  // piece from before the upload, and picking that same piece again did nothing,
+  // because a select only reports a change when its value changes.
+  const uploadOption = new Option('Your image', 'upload');
+  let uploadUrl = '';
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    if (uploadUrl) URL.revokeObjectURL(uploadUrl); // free the previous upload
+    uploadUrl = URL.createObjectURL(file);
+    if (!uploadOption.parentElement) pieceSelect.add(uploadOption);
+    pieceSelect.value = 'upload';
+    fileInput.value = ''; // so choosing the same file again still counts as a change
+    load(uploadUrl);
+  });
+
   pieceSelect.addEventListener('change', () => {
-    loadPiece(art[Number(pieceSelect.value)]);
+    if (pieceSelect.value === 'upload') load(uploadUrl);
+    else loadPiece(art[Number(pieceSelect.value)]);
+  });
+
+  invertBox.addEventListener('change', () => {
+    settings.invert = invertBox.checked;
+    rerender();
+  });
+
+  // Sliders: update the setting, show its value, and convert again.
+  const sliders = [...document.querySelectorAll<HTMLInputElement>('[data-setting]')];
+  type SliderKey = keyof typeof DEFAULTS;
+  function setSlider(slider: HTMLInputElement, value: number) {
+    const key = slider.dataset.setting as SliderKey;
+    slider.value = String(value);
+    settings[key] = value;
+    document.querySelector(`[data-output-for="${key}"]`)!.textContent = String(value);
+  }
+  sliders.forEach((slider) => {
+    slider.addEventListener('input', () => {
+      setSlider(slider, Number(slider.value));
+      rerender();
+    });
+  });
+
+  // Put every setting back to its default for the image on screen, and convert again.
+  document.querySelector('[data-reset]')!.addEventListener('click', () => {
+    sliders.forEach((slider) => setSlider(slider, DEFAULTS[slider.dataset.setting as SliderKey]));
+    settings.invert = defaultInvert();
+    invertBox.checked = settings.invert;
+    rerender();
   });
 
   // Start with the first piece in the list.
@@ -165,27 +289,108 @@ import Base from '../layouts/Base.astro';
 </script>
 
 <style>
-  .lab {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem var(--gutter) 4rem;
+  .renderer {
+    padding-top: clamp(24px, 5vw, 64px);
   }
-  .lab h1 {
+  .renderer h1 {
     font-size: var(--step-3);
   }
-  .lab__hint {
+  .renderer__intro {
+    margin: 0.75rem 0 0;
     color: var(--paper-muted);
   }
-  .lab__pick {
-    display: block;
-    margin: 1rem 0 2rem;
+  .renderer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    margin: 0.5rem 0 0;
     font-size: var(--step-0);
   }
-  .lab__panes {
+  .renderer__links a {
+    display: inline-block;
+    padding: 0.4rem 0;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 1rem 1.5rem;
+    margin-top: 1.75rem;
+  }
+  .controls--sliders {
+    margin-top: 1.25rem;
+  }
+  .field {
+    display: grid;
+    gap: 0.35rem;
+    font-size: var(--step-0);
+  }
+  .field__label {
+    color: var(--paper-muted);
+  }
+  .field output {
+    margin-left: 0.35em;
+    color: var(--paper);
+    font-variant-numeric: tabular-nums;
+  }
+  .select {
+    min-height: 44px;
+    min-width: 12rem;
+    padding: 0 0.75rem;
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius);
+    background: var(--page);
+    color: var(--paper);
+    font: inherit;
+  }
+  input[type='range'] {
+    width: 12rem;
+    min-height: 32px;
+    accent-color: var(--paper);
+  }
+
+  /* The real file input is hidden; the button-styled label opens it. */
+  .upload {
+    position: relative;
+    cursor: pointer;
+  }
+  .upload__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .upload:focus-within {
+    outline: 2px solid var(--paper);
+    outline-offset: 4px;
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    font-size: var(--step-0);
+    cursor: pointer;
+  }
+  .check input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--paper);
+  }
+
+  .panes {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 2rem;
     align-items: start;
+    margin-top: 2rem;
+  }
+  @media (max-width: 820px) {
+    .panes {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   figure {
     margin: 0;
@@ -197,7 +402,29 @@ import Base from '../layouts/Base.astro';
   }
   canvas {
     display: block;
-    max-width: 100%;
+    width: 100%;
     height: auto;
+    border-radius: var(--radius);
+  }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem 2rem;
+    margin-top: clamp(56px, 8vw, 96px);
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+    border-top: 1px solid #3a3a3a;
+    font-size: var(--step-0);
+  }
+  .footer p {
+    margin: 0;
+    color: var(--paper-muted);
+  }
+  .footer a {
+    display: inline-block;
+    padding: 0.7rem 0;
   }
 </style>
