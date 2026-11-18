@@ -1,11 +1,21 @@
 ---
 // Every piece in the `art` list from site.ts, in a masonry layout: each image keeps
 // its own shape, and the columns fill top to bottom like a Pinterest board.
+// Clicking a piece opens it large in a lightbox, with arrows to move between pieces.
 import Base from '../layouts/Base.astro';
 import Nav from '../components/Nav.astro';
 import { profile, art } from '../data/site';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// What the lightbox script needs for each piece, in gallery order.
+const pieces = art.map((p) => ({
+  title: p.title,
+  meta: [p.caption, p.credit].filter(Boolean).join(', '),
+  src: `${base}${p.src}`,
+  frames: p.frames ?? 1,
+  fps: p.fps ?? 10,
+}));
 ---
 
 <Base title={`Gallery · ${profile.name}`} description={`Art by ${profile.name}.`}>
@@ -15,21 +25,24 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <h1>Gallery</h1>
 
     <ul class="masonry">
-      {art.map((piece) => (
+      {art.map((piece, i) => (
         <li>
           <figure>
-            {piece.frames && piece.frames > 1 ? (
-              // Sprite sheet: the strip is `frames` times wider than its box, so the
-              // box is exactly one frame tall. CSS slides the strip one frame per step.
-              <div
-                class="sprite"
-                style={`--frames: ${piece.frames}; --duration: ${piece.frames / (piece.fps ?? 10)}s`}
-              >
-                <img src={`${base}${piece.src}`} alt={piece.title} loading="lazy" />
-              </div>
-            ) : (
-              <img src={`${base}${piece.src}`} alt={piece.title} loading="lazy" />
-            )}
+            <button type="button" class="masonry__open" data-open={i}>
+              <span class="sr-only">Open {piece.title} full size</span>
+              {piece.frames && piece.frames > 1 ? (
+                // Sprite sheet: the strip is `frames` times wider than its box, so the
+                // box is exactly one frame tall. CSS slides the strip one frame per step.
+                <span
+                  class="sprite"
+                  style={`--frames: ${piece.frames}; --duration: ${piece.frames / (piece.fps ?? 10)}s`}
+                >
+                  <img src={`${base}${piece.src}`} alt="" loading="lazy" />
+                </span>
+              ) : (
+                <img src={`${base}${piece.src}`} alt="" loading="lazy" />
+              )}
+            </button>
             <figcaption>
               <span class="masonry__title">{piece.title}</span>
               {piece.caption && <span class="masonry__meta">{piece.caption}</span>}
@@ -41,6 +54,50 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </ul>
   </main>
 
+  <!-- The lightbox. <dialog> handles the overlay, Esc to close, and keeping
+       keyboard focus inside while it's open. -->
+  <dialog class="lightbox" data-lightbox data-pieces={JSON.stringify(pieces)} aria-label="Artwork">
+    <button type="button" class="lb-btn lightbox__close" data-close aria-label="Close">
+      ×
+    </button>
+
+    <div class="lightbox__stage" data-stage>
+      <div class="lightbox__fit" data-fit>
+        <img class="lightbox__img" data-img alt="" hidden />
+        <span class="lightbox__sprite" data-sprite hidden>
+          <img data-sprite-img alt="" />
+        </span>
+      </div>
+    </div>
+
+    <p class="lightbox__caption">
+      <span class="lightbox__title" data-title></span>
+      <span class="lightbox__meta" data-meta></span>
+      <span class="lightbox__count" data-count></span>
+    </p>
+
+    {pieces.length > 1 && (
+      <>
+        <button
+          type="button"
+          class="lb-btn lightbox__step lightbox__step--prev"
+          data-step="-1"
+          aria-label="Previous piece"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          class="lb-btn lightbox__step lightbox__step--next"
+          data-step="1"
+          aria-label="Next piece"
+        >
+          ›
+        </button>
+      </>
+    )}
+  </dialog>
+
   <footer class="footer wrap">
     <p>
       {profile.name}, {new Date().getFullYear()}. Drawn by hand, built with Astro.
@@ -48,6 +105,118 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <a href={`${base}/`}>Back to home</a>
   </footer>
 </Base>
+
+<script>
+  type Piece = { title: string; meta: string; src: string; frames: number; fps: number };
+
+  const dialog = document.querySelector<HTMLDialogElement>('[data-lightbox]')!;
+  const pieces: Piece[] = JSON.parse(dialog.dataset.pieces!);
+  const stage = dialog.querySelector<HTMLElement>('[data-stage]')!;
+  const fit = dialog.querySelector<HTMLElement>('[data-fit]')!;
+  const img = dialog.querySelector<HTMLImageElement>('[data-img]')!;
+  const sprite = dialog.querySelector<HTMLElement>('[data-sprite]')!;
+  const spriteImg = dialog.querySelector<HTMLImageElement>('[data-sprite-img]')!;
+  const titleEl = dialog.querySelector('[data-title]')!;
+  const metaEl = dialog.querySelector('[data-meta]')!;
+  const countEl = dialog.querySelector('[data-count]')!;
+  let index = 0;
+  // Counts every request to show a piece. If you click on before a big image has
+  // loaded, the older request sees it's out of date and doesn't show its image.
+  let request = 0;
+
+  // Resolves once an image's file has loaded (or failed, so a broken image doesn't
+  // block the arrows). Then it gives the browser up to 300 ms to decode the image, so
+  // it appears in one go. The cap matters: decode() can stall in a background tab.
+  function ready(image: HTMLImageElement) {
+    const loaded = image.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          image.onload = image.onerror = () => resolve();
+        });
+    return loaded.then(() =>
+      Promise.race([image.decode().catch(() => {}), new Promise((r) => setTimeout(r, 300))]),
+    );
+  }
+
+  // Load the piece fully first, then swap it in. Swapping the src straight away
+  // showed the previous piece for a moment while the new file downloaded.
+  async function show(i: number) {
+    index = (i + pieces.length) % pieces.length; // wrap around at both ends
+    const piece = pieces[index];
+    const mine = ++request;
+
+    const loader = new Image();
+    loader.src = piece.src;
+    await ready(loader);
+    if (mine !== request) return;
+
+    titleEl.textContent = piece.title;
+    metaEl.textContent = piece.meta;
+    countEl.textContent = `${index + 1} / ${pieces.length}`;
+
+    if (piece.frames > 1) {
+      img.hidden = true;
+      sprite.hidden = false;
+      spriteImg.alt = piece.title;
+      spriteImg.src = piece.src;
+      sizeSprite(loader.naturalWidth, loader.naturalHeight);
+    } else {
+      sprite.hidden = true;
+      img.alt = piece.title;
+      img.src = piece.src;
+      img.hidden = false;
+    }
+  }
+
+  // Pixel art looks clean only at whole-number sizes, so pick the largest whole
+  // number that fits the stage: each art pixel becomes exactly scale × scale pixels.
+  function sizeSprite(width = spriteImg.naturalWidth, height = spriteImg.naturalHeight) {
+    const piece = pieces[index];
+    if (piece.frames <= 1 || !width) return;
+    const frameW = width / piece.frames;
+    const frameH = height;
+    const scale = Math.max(
+      1,
+      Math.floor(Math.min(stage.clientWidth / frameW, stage.clientHeight / frameH)),
+    );
+    sprite.style.setProperty('--frames', String(piece.frames));
+    sprite.style.setProperty('--duration', `${piece.frames / piece.fps}s`);
+    sprite.style.setProperty('--frame-w', `${frameW * scale}px`);
+    sprite.style.setProperty('--frame-h', `${frameH * scale}px`);
+  }
+
+  function open(i: number) {
+    // Start empty, so the last piece you looked at doesn't show while this one loads.
+    img.hidden = true;
+    sprite.hidden = true;
+    titleEl.textContent = metaEl.textContent = countEl.textContent = '';
+    dialog.showModal();
+    show(i);
+  }
+
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-open]')
+    .forEach((b) => b.addEventListener('click', () => open(Number(b.dataset.open))));
+  dialog.querySelector('[data-close]')!.addEventListener('click', () => dialog.close());
+  dialog
+    .querySelectorAll<HTMLButtonElement>('[data-step]')
+    .forEach((b) => b.addEventListener('click', () => show(index + Number(b.dataset.step))));
+
+  // Arrow keys move between pieces; Esc closing is built into <dialog>.
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') show(index - 1);
+    if (e.key === 'ArrowRight') show(index + 1);
+  });
+
+  // Clicking the dark space around the art closes it, like most lightboxes.
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog || e.target === stage || e.target === fit) dialog.close();
+  });
+
+  window.addEventListener('resize', () => {
+    if (dialog.open) sizeSprite();
+  });
+</script>
 
 <style>
   .gallery-page {
@@ -74,10 +243,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   .masonry figure {
     margin: 0;
   }
+  /* Each image is a button that opens the lightbox; it looks like the plain image. */
+  .masonry__open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--art-radius);
+    background: none;
+    cursor: zoom-in;
+  }
   .masonry img {
     width: 100%;
     height: auto;
-    border-radius: var(--radius);
+    border-radius: var(--art-radius);
   }
   .masonry figcaption {
     display: flex;
@@ -94,8 +273,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   }
 
   .sprite {
+    display: block;
     overflow: hidden;
-    border-radius: var(--radius);
+    border-radius: var(--art-radius);
   }
   .sprite img {
     width: calc(var(--frames) * 100%);
@@ -110,6 +290,128 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     to {
       transform: translateX(-100%);
     }
+  }
+
+  /* The lightbox covers the screen, with the art in the middle and the caption under
+     it. Generous padding keeps the art from feeling overbearing, and leaves the side
+     gutters free for the arrows so they never sit on top of the art. */
+  .lightbox {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: clamp(56px, 9vh, 104px) clamp(68px, 12vw, 176px) clamp(20px, 4vh, 40px);
+    border: 0;
+    background: rgb(0 0 0 / 0.94);
+    color: var(--paper);
+  }
+  .lightbox[open] {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 1rem;
+  }
+  /* Stop the page scrolling behind the lightbox while it's open. */
+  :global(html):has(.lightbox[open]) {
+    overflow: hidden;
+  }
+  .lightbox::backdrop {
+    background: transparent;
+  }
+  .lightbox__stage {
+    position: relative;
+    min-height: 0;
+  }
+  /* A layer exactly the stage's size. Because its size is fixed, the image's
+     max-width/max-height of 100% work, so the image shrinks to fit and its own box
+     is the picture's real shape. That's what lets its corners be rounded. */
+  .lightbox__fit {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox__img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    border-radius: var(--art-radius);
+  }
+  .lightbox__sprite {
+    display: block;
+    width: var(--frame-w);
+    height: var(--frame-h);
+    overflow: hidden;
+    border-radius: var(--art-radius);
+  }
+  .lightbox__sprite[hidden],
+  .lightbox__img[hidden] {
+    display: none;
+  }
+  .lightbox__sprite img {
+    width: calc(var(--frames) * var(--frame-w));
+    height: var(--frame-h);
+    max-width: none;
+    image-rendering: pixelated;
+    animation: play var(--duration) steps(var(--frames)) infinite;
+  }
+  .lightbox__caption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 0.75rem;
+    max-width: none;
+    margin: 0;
+    font-size: var(--step-0);
+    text-align: center;
+  }
+  .lightbox__title {
+    font-weight: 700;
+  }
+  .lightbox__meta,
+  .lightbox__count {
+    color: var(--paper-muted);
+  }
+  .lightbox__count {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Round buttons on a dark backing, the same as the homepage viewer's arrows. */
+  .lb-btn {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0 0 3px;
+    border: 1px solid #3a3a3a;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.78);
+    color: var(--paper-muted);
+    font: inherit;
+    font-size: var(--step-3);
+    line-height: 1;
+    cursor: pointer;
+  }
+  .lb-btn:hover {
+    color: var(--paper);
+    border-color: var(--paper-muted);
+  }
+  .lightbox__close {
+    top: 14px;
+    right: 14px;
+  }
+  .lightbox__step {
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .lightbox__step--prev {
+    left: 14px;
+  }
+  .lightbox__step--next {
+    right: 14px;
   }
 
   .footer {

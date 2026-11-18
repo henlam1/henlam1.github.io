@@ -16,6 +16,7 @@
   --step-5: clamp(3.5rem, 13vw, 9.5rem); /* your name */
 
   --radius: 4px;
+  --art-radius: 16px; /* rounded corners on artwork: gallery tiles and the lightbox */
   --gutter: clamp(16px, 5vw, 64px);
   --max: 1180px;
   --measure: 62ch;

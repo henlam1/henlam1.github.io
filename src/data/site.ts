@@ -120,11 +120,9 @@ export type ArtPiece = {
 // in the homepage viewer. Drawings, digital pieces, pixel art, bakes: anything you've made.
 export const art: ArtPiece[] = [
   {
-    title: 'Sleeping Fox',
-    src: '/art/fox-transparent.png',
-    frames: 14,
-    fps: 10,
-    caption: 'Pixel art, 2022',
+    title: 'Portrait',
+    src: '/art/Illustration102.png',
+    caption: 'Digital Art (CSP), 2026',
     featured: false,
   },
   {
@@ -147,9 +145,11 @@ export const art: ArtPiece[] = [
     featured: true,
   },
   {
-    title: 'Portrait',
-    src: '/art/Illustration102.png',
-    caption: 'Digital Art (CSP), 2026',
+    title: 'Sleeping Fox',
+    src: '/art/fox-transparent.png',
+    frames: 14,
+    fps: 10,
+    caption: 'Pixel art, 2022',
     featured: false,
   },
 ];
