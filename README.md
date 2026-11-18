@@ -1,20 +1,36 @@
 # Portfolio
 
-My personal portfolio site, built with [Astro](https://astro.build).
+**Live site: [henlam1.github.io](https://henlam1.github.io/)**
+
+- [Home](https://henlam1.github.io/): intro, art viewer, about, projects, experience
+- [Gallery](https://henlam1.github.io/gallery/): all my art, with a lightbox
+- [ASCII renderer](https://henlam1.github.io/lab/): try the renderer on my pieces or your own image
+
+Built with [Astro](https://astro.build). Black and white, "ink and code": my drawings, re-drawn as text by an ASCII renderer I wrote.
 
 ## Editing content
 
-**All content lives in [`src/data/site.ts`](src/data/site.ts).** Search for `TODO` and replace each one:
+**All content lives in [`src/data/site.ts`](src/data/site.ts):**
 
-- `profile`: name, tagline, about blurb, email, GitHub/LinkedIn links, status pill
-- `projects`: one object per project. The first one with `featured: true` gets a full-width card
+- `profile`: name, tagline, about text, email, links, resume path
+- `projects`: one entry per project, in the order they appear
+- `art`: every piece in the gallery. Optional fields:
+  - `featured: true` shows it in the homepage viewer
+  - `frames` and `fps` for sprite sheets (frames side by side in one row)
+  - `invert: true` for dark art on light paper
 - `experience`, `education`, `skills`
 
-Extras:
+Images go in `public/art/`, and the resume PDF in `public/`. Colors, fonts and sizes are the variables at the top of [`src/styles/global.css`](src/styles/global.css).
 
-- **Resume:** put your PDF in `public/resume.pdf`.
-- **Project screenshots:** put images in `public/projects/` and set `image: '/projects/name.png'` on the project. Without an image, the card shows a big project number.
-- **Colors and fonts:** change the variables at the top of [`src/styles/global.css`](src/styles/global.css).
+## The ASCII renderer
+
+The renderer is in [`src/lib`](src/lib), following [Alex Harri's article on ASCII rendering](https://alexharri.com/blog/ascii-rendering):
+
+- [`index.ts`](src/lib/index.ts): `toAscii()`, which converts an image into rows of characters
+- [`sampling.ts`](src/lib/sampling.ts): sampling each cell in circles (Vogel-spiral points), plus directional and global contrast
+- [`characters.ts`](src/lib/characters.ts): measuring the shape of each of the 95 printable characters, and finding the closest match
+
+It's used by the homepage viewer ([`ArtViewer.astro`](src/components/ArtViewer.astro)) and the [renderer page](src/pages/lab.astro). Tags `v1-brightness` to `v5-directional` mark each stage of building it.
 
 ## Running locally
 
@@ -24,9 +40,6 @@ npm run dev      # http://localhost:4321
 npm run build    # outputs to dist/
 ```
 
-## Deploying (GitHub Pages)
+## Deploying
 
-1. Push this repo to GitHub. Naming it `<username>.github.io` gives you the cleanest URL.
-2. In the repo, open **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. In `astro.config.mjs`, set `site` to your Pages URL. If the repo has any other name, also set `base: '/<repo-name>'`.
-4. Push to `main`. The workflow in `.github/workflows/deploy.yml` builds and publishes the site.
+Every push to `main` builds and publishes the site to GitHub Pages, using [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It can also be run by hand from the repo's **Actions** tab. The live site updates a minute or two after a push.
