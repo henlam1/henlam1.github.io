@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────
 //  THIS IS THE ONLY FILE YOU NEED TO EDIT.
 //  Everything on the site is generated from the data below.
-//  Replace anything marked TODO, save, and the page updates.
+//  Change anything here, save, and the page updates.
 // ─────────────────────────────────────────────────────────────
 
 export const profile = {
-  name: 'Henry Lam', // TODO
+  name: 'Henry Lam',
   // Shown under your name in the hero. Keep it to one punchy line.
   tagline: 'I build full-stack web apps, and I draw sometimes.',
   // Short paragraph for the About section. 2–4 sentences.
@@ -18,7 +18,7 @@ export const profile = {
   // Example: '/art/name.svg'. Until you add it, your name shows as text.
   lettering: '',
   // A photo of you for the About section, in public/art/.
-  // Example: '/art/me.jpg'. Until you add it, a dashed box shows where it goes.
+  // Example: '/art/me.jpg'. Leave it as '' to show the About section without a photo.
   photo: '',
   email: 'henry.lam.7369@gmail.com',
   // Put your resume PDF in the `public/` folder with this exact name,
@@ -26,7 +26,7 @@ export const profile = {
   resume: '/portfolio_resume.pdf',
   links: {
     github: 'https://github.com/henlam1',
-    linkedin: 'https://www.linkedin.com/in/henry-lam-454173269/', // TODO
+    linkedin: 'https://www.linkedin.com/in/henry-lam-454173269/',
   },
 };
 
@@ -133,13 +133,14 @@ export const art: ArtPiece[] = [
   {
     title: 'Portrait',
     src: '/art/Illustration102.png',
-    caption: 'Digital Art (CSP), 2026',
+    caption: 'Digital, Clip Studio Paint, 2026',
+    credit: 'Study after a Rednote artist (ID 814682547)',
     featured: false,
   },
   {
     title: 'Peonies',
     src: '/art/9_25_24.jpg',
-    caption: 'Digital Art (Krita), 2024',
+    caption: 'Digital, Krita, 2024',
     featured: false,
   },
   {
@@ -151,7 +152,7 @@ export const art: ArtPiece[] = [
   {
     title: 'Flower',
     src: '/art/Illustration17.jpg',
-    caption: 'Digital Art (CSP), 2026',
+    caption: 'Digital, Clip Studio Paint, 2026',
     featured: true,
   },
   {
