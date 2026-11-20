@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .env
 .claude/
+
+# Full-size originals of the art in public/art (kept locally, not published)
+art-originals/

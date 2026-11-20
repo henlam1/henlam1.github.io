@@ -138,7 +138,7 @@ export const art: ArtPiece[] = [
   },
   {
     title: 'Peonies',
-    src: '/art/9_25_24.png',
+    src: '/art/9_25_24.jpg',
     caption: 'Digital Art (Krita), 2024',
     featured: false,
   },
@@ -150,7 +150,7 @@ export const art: ArtPiece[] = [
   },
   {
     title: 'Flower',
-    src: '/art/Illustration17.png',
+    src: '/art/Illustration17.jpg',
     caption: 'Digital Art (CSP), 2026',
     featured: true,
   },
